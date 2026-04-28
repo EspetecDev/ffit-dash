@@ -1,0 +1,12 @@
+.next
+node_modules
+out
+.env*
+!.env.example
+next-env.d.ts
+.DS_Store
+*.log
+.vercel
+
+public/data/*
+!public/data/*.example
