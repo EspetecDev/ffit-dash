@@ -37,11 +37,10 @@ import {
   DailyIntake,
   IntakeEntry,
   groupIntakeByDay,
-  parseIntakeCsv,
-} from "@/lib/intake-csv"
+} from "@/lib/intake"
 import { cn } from "@/lib/utils"
 
-const csvPath = "/data/intake-log.csv"
+const intakeApiPath = "/api/intake"
 const intakeTrackingStart = "2026-04-27"
 const requiredMealMoments = ["desayuno", "comida", "cena"]
 const dailyRecommendedCalories = 2200
@@ -101,15 +100,15 @@ const copy = {
     visibleDays: "dies visibles.",
     foods: "Aliments",
     avgCalories: "Kcal mitjanes",
-    activeFile: "Fitxer actiu",
-    workoutsCsvNote: "Entrenaments pot viure en un altre CSV quan afegim aquest flux.",
+    activeFile: "Font activa",
+    workoutsDataNote: "Entrenaments tindra la seva propia font de dades quan afegim aquest flux.",
     intakeCalendar: "Calendari d'ingesta",
     dailyIntakeLog: "Registre diari d'ingesta",
     intakeLog: "Registre d'ingesta",
     allDetails: "Tots els detalls",
     dayDetails: "Detalls del dia",
     backToLog: "Tornar al registre",
-    reloadCsv: "Recarregar CSV",
+    reloadData: "Recarregar dades",
     lastDay: "Ultim dia",
     intakeRegister: "Registre d'ingesta",
     caloriesAndMacros: "Calories i Macros",
@@ -126,12 +125,12 @@ const copy = {
     cancel: "Cancel.lar",
     saveError: "Error en desar",
     editNotes: "Editar notes de",
-    loadingCsv: "Carregant CSV",
-    failedCsv: "No s'ha pogut carregar el CSV",
+    loadingData: "Carregant dades",
+    failedData: "No s'han pogut carregar les dades",
     loadedFrom: "aliments carregats des de",
     totalRange: "Total del dia",
     workoutPending: "Tauler d'entrenaments pendent",
-    workoutPendingDescription: "Aquesta seccio esta preparada per a un CSV separat d'entrenaments.",
+    workoutPendingDescription: "Aquesta seccio esta preparada per a la futura font de dades d'entrenaments.",
   },
   es: {
     appSubtitle: "Registro diario de fitness",
@@ -161,15 +160,15 @@ const copy = {
     visibleDays: "dias visibles.",
     foods: "Alimentos",
     avgCalories: "Kcal medias",
-    activeFile: "Archivo activo",
-    workoutsCsvNote: "Workouts puede vivir en otro CSV cuando pasemos a esa parte.",
+    activeFile: "Fuente activa",
+    workoutsDataNote: "Workouts tendra su propia fuente de datos cuando pasemos a esa parte.",
     intakeCalendar: "Calendario de ingesta",
     dailyIntakeLog: "Registro diario de ingesta",
     intakeLog: "Registro de ingesta",
     allDetails: "Todos los detalles",
     dayDetails: "Detalles del dia",
     backToLog: "Volver al registro",
-    reloadCsv: "Recargar CSV",
+    reloadData: "Recargar datos",
     lastDay: "Ultimo dia",
     intakeRegister: "Registro de ingesta",
     caloriesAndMacros: "Calorias y Macros",
@@ -185,13 +184,13 @@ const copy = {
     save: "Guardar",
     cancel: "Cancelar",
     saveError: "Error al guardar",
-    editNotes: "Editar notas de",
-    loadingCsv: "Cargando CSV",
-    failedCsv: "No se pudo cargar el CSV",
+    editNotes: "Editar notes de",
+    loadingData: "Cargando datos",
+    failedData: "No se pudieron cargar los datos",
     loadedFrom: "alimentos cargados desde",
     totalRange: "Total del dia",
     workoutPending: "Dashboard de entrenamientos pendiente",
-    workoutPendingDescription: "Esta seccion esta preparada para un CSV separado de entrenamientos.",
+    workoutPendingDescription: "Esta seccion esta preparada para la futura fuente de datos de entrenamientos.",
   },
   en: {
     appSubtitle: "Fitness daily log",
@@ -215,21 +214,21 @@ const copy = {
     recommendedCalories: "Recommended calories",
     selectedAverage: "Selected average",
     macroSplit: "Macro split",
-    byMoment: "By moment",
+    byMoment: "By meal",
     selectedDayCalories: "Calories for the selected day.",
     rangeSummary: "Range summary",
     visibleDays: "visible days.",
     foods: "Foods",
     avgCalories: "Avg kcal",
-    activeFile: "Active file",
-    workoutsCsvNote: "Workouts can live in another CSV when we add that flow.",
+    activeFile: "Active source",
+    workoutsDataNote: "Workouts will get its own data source when we add that flow.",
     intakeCalendar: "Intake calendar",
     dailyIntakeLog: "Daily intake log",
     intakeLog: "Intake Log",
     allDetails: "All details",
     dayDetails: "Day details",
     backToLog: "Back to log",
-    reloadCsv: "Reload CSV",
+    reloadData: "Reload data",
     lastDay: "Last day",
     intakeRegister: "Intake register",
     caloriesAndMacros: "Calories and Macros",
@@ -246,12 +245,12 @@ const copy = {
     cancel: "Cancel",
     saveError: "Save failed",
     editNotes: "Edit notes for",
-    loadingCsv: "Loading CSV",
-    failedCsv: "Could not load CSV",
+    loadingData: "Loading data",
+    failedData: "Could not load data",
     loadedFrom: "foods loaded from",
     totalRange: "Day total",
     workoutPending: "Workout dashboard pending",
-    workoutPendingDescription: "This section is ready for a separate workouts CSV.",
+    workoutPendingDescription: "This section is ready for the future workouts data source.",
   },
 } satisfies Record<Language, Record<string, string>>
 
@@ -275,9 +274,9 @@ function average(values: number[]) {
 
 function macroCalories(day: DailyIntake) {
   return {
-    grasas: day.grasas * 9,
-    carbohidratos: day.carbohidratos * 4,
-    proteinas: day.proteinas * 4,
+    fat: day.fat * 9,
+    carbs: day.carbs * 4,
+    protein: day.protein * 4,
   }
 }
 
@@ -327,7 +326,7 @@ function CaloriesPlot({
   t: Copy
 }) {
   const currentMaxCalories = Math.max(
-    ...plotDays.map((plotDay) => plotDay.day?.calorias ?? 0),
+    ...plotDays.map((plotDay) => plotDay.day?.calories ?? 0),
     0
   )
   const max =
@@ -340,7 +339,7 @@ function CaloriesPlot({
     if (!plotDay.day) return []
 
     const x = plotDays.length === 1 ? 50 : index * (100 / plotDays.length) + 50 / plotDays.length
-    const y = 100 - (plotDay.day.calorias / max) * 100
+    const y = 100 - (plotDay.day.calories / max) * 100
     return {
       day: plotDay.day,
       x,
@@ -385,9 +384,9 @@ function CaloriesPlot({
             />
           ) : null}
           {points.map((point) => (
-            <g key={point.day.fecha}>
+            <g key={point.day.date}>
               <title>
-                {formatDate(point.day.fecha, language)} · {formatNumber(Math.round(point.day.calorias), language)} kcal
+                {formatDate(point.day.date, language)} · {formatNumber(Math.round(point.day.calories), language)} kcal
               </title>
             </g>
           ))}
@@ -395,7 +394,7 @@ function CaloriesPlot({
         <div className="absolute inset-0">
           {points.map((point) => (
             <div
-              key={point.day.fecha}
+              key={point.day.date}
               className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1"
               style={{
                 left: `${point.x}%`,
@@ -403,13 +402,13 @@ function CaloriesPlot({
               }}
             >
               <button
-                aria-label={`${formatDate(point.day.fecha, language)} · ${formatNumber(Math.round(point.day.calorias), language)} kcal`}
+                aria-label={`${formatDate(point.day.date, language)} · ${formatNumber(Math.round(point.day.calories), language)} kcal`}
                 className="size-4 cursor-help rounded-full border-2 border-background bg-warning shadow-sm"
-                title={`${formatDate(point.day.fecha, language)} · ${formatNumber(Math.round(point.day.calorias), language)} kcal`}
+                title={`${formatDate(point.day.date, language)} · ${formatNumber(Math.round(point.day.calories), language)} kcal`}
                 type="button"
               />
               <span className="whitespace-nowrap rounded-sm bg-muted/80 px-1 text-[10px] font-medium text-foreground">
-                {formatNumber(Math.round(point.day.calorias), language)}
+                {formatNumber(Math.round(point.day.calories), language)}
               </span>
             </div>
           ))}
@@ -431,24 +430,24 @@ function CaloriesPlot({
 
 function MacroSplit({ day, t }: { day: DailyIntake; t: Copy }) {
   const macros = macroCalories(day)
-  const total = macros.grasas + macros.carbohidratos + macros.proteinas || 1
+  const total = macros.fat + macros.carbs + macros.protein || 1
   const items = [
     {
       label: t.fats,
-      grams: day.grasas,
-      calories: macros.grasas,
+      grams: day.fat,
+      calories: macros.fat,
       className: "bg-warning",
     },
     {
       label: t.carbs,
-      grams: day.carbohidratos,
-      calories: macros.carbohidratos,
+      grams: day.carbs,
+      calories: macros.carbs,
       className: "bg-info",
     },
     {
       label: t.protein,
-      grams: day.proteinas,
-      calories: macros.proteinas,
+      grams: day.protein,
+      calories: macros.protein,
       className: "bg-success",
     },
   ]
@@ -483,7 +482,7 @@ function MacroSplit({ day, t }: { day: DailyIntake; t: Copy }) {
 
 function mealTotals(entries: IntakeEntry[]) {
   return entries.reduce<Record<string, number>>((acc, entry) => {
-    acc[entry.momento] = (acc[entry.momento] ?? 0) + entry.calorias
+    acc[entry.meal] = (acc[entry.meal] ?? 0) + entry.calories
     return acc
   }, {})
 }
@@ -523,7 +522,7 @@ function normalizeMealMoment(moment: string) {
 function intakeDayStatus(day: DailyIntake | undefined) {
   if (!day) return "missing"
 
-  const loggedMeals = new Set(day.entries.map((entry) => normalizeMealMoment(entry.momento)))
+  const loggedMeals = new Set(day.entries.map((entry) => normalizeMealMoment(entry.meal)))
   const hasEveryRequiredMeal = requiredMealMoments.every((meal) =>
     [...loggedMeals].some((loggedMeal) => loggedMeal.includes(meal))
   )
@@ -549,7 +548,7 @@ function CalendarIntakeTracker({
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
   const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
   const leadingEmptyDays = (monthStart.getDay() + 6) % 7
-  const dayByDate = new Map(days.map((day) => [day.fecha, day]))
+  const dayByDate = new Map(days.map((day) => [day.date, day]))
   const monthDays = Array.from({ length: monthEnd.getDate() }, (_, index) => {
     const date = new Date(today.getFullYear(), today.getMonth(), index + 1)
     return {
@@ -823,22 +822,22 @@ function IntakeTable({
   editingNotes: Record<number, string>
   notesStatus: NotesState
   onEditNotes: (entry: IntakeEntry) => void
-  onCancelNotes: (rowIndex: number) => void
-  onChangeDraft: (rowIndex: number, value: string) => void
+  onCancelNotes: (id: number) => void
+  onChangeDraft: (id: number, value: string) => void
   onSaveNotes: (entry: IntakeEntry) => void
 }) {
   const totals = entries.reduce(
     (acc, entry) => ({
-      calorias: acc.calorias + entry.calorias,
-      grasas: acc.grasas + entry.grasas,
-      carbohidratos: acc.carbohidratos + entry.carbohidratos,
-      proteinas: acc.proteinas + entry.proteinas,
+      calories: acc.calories + entry.calories,
+      fat: acc.fat + entry.fat,
+      carbs: acc.carbs + entry.carbs,
+      protein: acc.protein + entry.protein,
     }),
     {
-      calorias: 0,
-      grasas: 0,
-      carbohidratos: 0,
-      proteinas: 0,
+      calories: 0,
+      fat: 0,
+      carbs: 0,
+      protein: 0,
     }
   )
   const groupedEntries = entries.reduce<
@@ -846,34 +845,34 @@ function IntakeTable({
       moment: string
       entries: IntakeEntry[]
       totals: {
-        calorias: number
-        grasas: number
-        carbohidratos: number
-        proteinas: number
+        calories: number
+        fat: number
+        carbs: number
+        protein: number
       }
     }>
   >((groups, entry) => {
-    let group = groups.find((item) => item.moment === entry.momento)
+    let group = groups.find((item) => item.moment === entry.meal)
 
     if (!group) {
       group = {
-        moment: entry.momento,
+        moment: entry.meal,
         entries: [],
         totals: {
-          calorias: 0,
-          grasas: 0,
-          carbohidratos: 0,
-          proteinas: 0,
+          calories: 0,
+          fat: 0,
+          carbs: 0,
+          protein: 0,
         },
       }
       groups.push(group)
     }
 
     group.entries.push(entry)
-    group.totals.calorias += entry.calorias
-    group.totals.grasas += entry.grasas
-    group.totals.carbohidratos += entry.carbohidratos
-    group.totals.proteinas += entry.proteinas
+    group.totals.calories += entry.calories
+    group.totals.fat += entry.fat
+    group.totals.carbs += entry.carbs
+    group.totals.protein += entry.protein
 
     return groups
   }, [])
@@ -900,51 +899,51 @@ function IntakeTable({
             <Fragment key={group.moment}>
               {group.entries.map((entry, index) => (
                 <tr
-                  key={`${entry.fecha}-${entry.momento}-${entry.alimento}-${index}`}
+                  key={`${entry.date}-${entry.meal}-${entry.food}-${index}`}
                   className="border-b last:border-0"
                 >
                   {showDate ? (
                     <td className="py-3 pr-4 font-medium">
-                      {formatDate(entry.fecha, language)}
+                      {formatDate(entry.date, language)}
                     </td>
                   ) : null}
                   <td className="py-3 pr-4">
-                    <Badge variant="outline" className={mealTagClass(entry.momento)}>
-                      {entry.momento}
+                    <Badge variant="outline" className={mealTagClass(entry.meal)}>
+                      {entry.meal}
                     </Badge>
                   </td>
                   <td className="py-3 pr-4">
-                    <div className="font-medium">{entry.alimento}</div>
-                    {entry.marca ? (
+                    <div className="font-medium">{entry.food}</div>
+                    {entry.brand ? (
                       <div className="mt-1 text-xs text-muted-foreground">
-                        {entry.marca}
+                        {entry.brand}
                       </div>
                     ) : null}
                   </td>
                   <td className="py-3 pr-4">
-                    {[entry.cantidad, entry.unidad].filter(Boolean).join(" ")}
+                    {[entry.quantity, entry.unit].filter(Boolean).join(" ")}
                   </td>
                   <td className="py-3 pr-4">
-                {formatNumber(Math.round(entry.calorias), language)}
+                {formatNumber(Math.round(entry.calories), language)}
                   </td>
-                  <td className="py-3 pr-4">{entry.grasas} g</td>
-                  <td className="py-3 pr-4">{entry.carbohidratos} g</td>
-                  <td className="py-3 pr-4">{entry.proteinas} g</td>
+                  <td className="py-3 pr-4">{entry.fat} g</td>
+                  <td className="py-3 pr-4">{entry.carbs} g</td>
+                  <td className="py-3 pr-4">{entry.protein} g</td>
                   <td className="min-w-[260px] max-w-[320px] py-3 pr-4">
-                    {editingNotes[entry.rowIndex] !== undefined ? (
+                    {editingNotes[entry.id] !== undefined ? (
                       <div className="flex flex-col gap-2">
                         <textarea
                           className="min-h-20 w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
-                          value={editingNotes[entry.rowIndex]}
+                          value={editingNotes[entry.id]}
                           onChange={(event) =>
-                            onChangeDraft(entry.rowIndex, event.target.value)
+                            onChangeDraft(entry.id, event.target.value)
                           }
                         />
                         <div className="flex items-center gap-2">
                           <Button
                             size="sm"
                             onClick={() => onSaveNotes(entry)}
-                            disabled={notesStatus[entry.rowIndex] === "saving"}
+                            disabled={notesStatus[entry.id] === "saving"}
                           >
                             <Save />
                             {t.save}
@@ -952,11 +951,11 @@ function IntakeTable({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => onCancelNotes(entry.rowIndex)}
+                            onClick={() => onCancelNotes(entry.id)}
                           >
                             {t.cancel}
                           </Button>
-                          {notesStatus[entry.rowIndex] === "error" ? (
+                          {notesStatus[entry.id] === "error" ? (
                             <span className="text-xs text-red-500">
                               {t.saveError}
                             </span>
@@ -966,10 +965,10 @@ function IntakeTable({
                     ) : (
                       <div className="flex items-start justify-between gap-2">
                         <span className="line-clamp-2 text-muted-foreground">
-                          {entry.notas || "-"}
+                          {entry.notes || "-"}
                         </span>
                         <Button
-                          aria-label={`${t.editNotes} ${entry.alimento}`}
+                          aria-label={`${t.editNotes} ${entry.food}`}
                           variant="ghost"
                           size="icon"
                           onClick={() => onEditNotes(entry)}
@@ -1002,13 +1001,13 @@ function IntakeTable({
                   {t.subtotal} {group.moment}
                 </td>
                 <td className="py-2 pr-4">
-                  {formatNumber(Math.round(group.totals.calorias), language)}
+                  {formatNumber(Math.round(group.totals.calories), language)}
                 </td>
-                <td className="py-2 pr-4">{Math.round(group.totals.grasas)} g</td>
+                <td className="py-2 pr-4">{Math.round(group.totals.fat)} g</td>
                 <td className="py-2 pr-4">
-                  {Math.round(group.totals.carbohidratos)} g
+                  {Math.round(group.totals.carbs)} g
                 </td>
-                <td className="py-2 pr-4">{Math.round(group.totals.proteinas)} g</td>
+                <td className="py-2 pr-4">{Math.round(group.totals.protein)} g</td>
                 <td className="py-2 pr-4" />
                 <td className="py-2" />
               </tr>
@@ -1021,10 +1020,10 @@ function IntakeTable({
             <td className="py-3 pr-4" colSpan={3}>
               {t.dayTotal}
             </td>
-            <td className="py-3 pr-4">{formatNumber(Math.round(totals.calorias), language)}</td>
-            <td className="py-3 pr-4">{Math.round(totals.grasas)} g</td>
-            <td className="py-3 pr-4">{Math.round(totals.carbohidratos)} g</td>
-            <td className="py-3 pr-4">{Math.round(totals.proteinas)} g</td>
+            <td className="py-3 pr-4">{formatNumber(Math.round(totals.calories), language)}</td>
+            <td className="py-3 pr-4">{Math.round(totals.fat)} g</td>
+            <td className="py-3 pr-4">{Math.round(totals.carbs)} g</td>
+            <td className="py-3 pr-4">{Math.round(totals.protein)} g</td>
             <td className="py-3 pr-4" />
             <td className="py-3" />
           </tr>
@@ -1057,8 +1056,8 @@ function IntakeLogView({
   editingNotes: Record<number, string>
   notesStatus: NotesState
   onEditNotes: (entry: IntakeEntry) => void
-  onCancelNotes: (rowIndex: number) => void
-  onChangeDraft: (rowIndex: number, value: string) => void
+  onCancelNotes: (id: number) => void
+  onChangeDraft: (id: number, value: string) => void
   onSaveNotes: (entry: IntakeEntry) => void
 }) {
   return (
@@ -1086,22 +1085,22 @@ function IntakeLogView({
 
       <div className="grid gap-4">
         {[...days].reverse().map((day) => (
-          <Card key={day.fecha}>
+          <Card key={day.date}>
             <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <CardTitle>{formatDate(day.fecha, language)}</CardTitle>
+                <CardTitle>{formatDate(day.date, language)}</CardTitle>
                 <CardDescription>
                   {day.entries.length} {t.foodsRegistered}
                 </CardDescription>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline">
-                  {formatNumber(Math.round(day.calorias), language)} kcal
+                  {formatNumber(Math.round(day.calories), language)} kcal
                 </Badge>
-                <Badge variant="outline">{Math.round(day.proteinas)} g {t.protein}</Badge>
-                <Badge variant="outline">{Math.round(day.carbohidratos)} g {t.carbs}</Badge>
-                <Badge variant="outline">{Math.round(day.grasas)} g {t.fats}</Badge>
-                <Button size="sm" onClick={() => onShowDayDetails(day.fecha)}>
+                <Badge variant="outline">{Math.round(day.protein)} g {t.protein}</Badge>
+                <Badge variant="outline">{Math.round(day.carbs)} g {t.carbs}</Badge>
+                <Badge variant="outline">{Math.round(day.fat)} g {t.fats}</Badge>
+                <Button size="sm" onClick={() => onShowDayDetails(day.date)}>
                   {t.allDetails}
                 </Button>
               </div>
@@ -1153,8 +1152,8 @@ function DayDetailsView({
   notesStatus: NotesState
   onBackToLog: () => void
   onEditNotes: (entry: IntakeEntry) => void
-  onCancelNotes: (rowIndex: number) => void
-  onChangeDraft: (rowIndex: number, value: string) => void
+  onCancelNotes: (id: number) => void
+  onChangeDraft: (id: number, value: string) => void
   onSaveNotes: (entry: IntakeEntry) => void
 }) {
   return (
@@ -1167,7 +1166,7 @@ function DayDetailsView({
             <span>{t.dayDetails}</span>
           </div>
           <h1 className="mt-2 text-3xl font-semibold tracking-normal text-foreground">
-            {formatDate(day.fecha, language)}
+            {formatDate(day.date, language)}
           </h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -1177,7 +1176,7 @@ function DayDetailsView({
           </Button>
           <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
             <RefreshCw />
-            {t.reloadCsv}
+            {t.reloadData}
           </Button>
           <LanguageSelector
             language={language}
@@ -1192,28 +1191,28 @@ function DayDetailsView({
         <StatCard
           icon={Flame}
           label={t.currentCalories}
-          value={`${formatNumber(Math.round(day.calorias), language)} kcal`}
+          value={`${formatNumber(Math.round(day.calories), language)} kcal`}
           detail={`${day.entries.length} ${t.foodsRegistered}`}
           tone="gold"
         />
         <StatCard
           icon={Ham}
           label={t.protein}
-          value={`${Math.round(day.proteinas)} g`}
+          value={`${Math.round(day.protein)} g`}
           detail={t.dayTotal}
           tone="green"
         />
         <StatCard
           icon={Wheat}
           label={t.carbs}
-          value={`${Math.round(day.carbohidratos)} g`}
+          value={`${Math.round(day.carbs)} g`}
           detail={t.dayTotal}
           tone="blue"
         />
         <StatCard
           icon={Salad}
           label={t.fats}
-          value={`${Math.round(day.grasas)} g`}
+          value={`${Math.round(day.fat)} g`}
           detail={t.dayTotal}
         />
       </section>
@@ -1222,7 +1221,7 @@ function DayDetailsView({
         <Card>
           <CardHeader>
             <CardTitle>{t.macroSplit}</CardTitle>
-            <CardDescription>{formatDate(day.fecha, language)}</CardDescription>
+            <CardDescription>{formatDate(day.date, language)}</CardDescription>
           </CardHeader>
           <CardContent>
             <MacroSplit day={day} t={t} />
@@ -1283,7 +1282,7 @@ export function IntakeDashboard() {
   const [entries, setEntries] = useState<IntakeEntry[]>([])
   const [weekStart, setWeekStart] = useState(() => dateKey(startOfWeek(new Date())))
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const [status, setStatus] = useState(copy.es.loadingCsv)
+  const [status, setStatus] = useState(copy.es.loadingData)
   const [activeView, setActiveView] = useState<DashboardView>("nutrition-overview")
   const [editingNotes, setEditingNotes] = useState<Record<number, string>>({})
   const [notesStatus, setNotesStatus] = useState<NotesState>({})
@@ -1302,25 +1301,27 @@ export function IntakeDashboard() {
   }
 
   useEffect(() => {
-    async function loadCsv() {
+    async function loadIntakeEntries() {
       try {
-        const response = await fetch(`${csvPath}?ts=${Date.now()}`)
-        if (!response.ok) throw new Error(`CSV returned ${response.status}`)
-        const csv = await response.text()
-        const parsed = parseIntakeCsv(csv)
-        setEntries(parsed)
-        setStatus(`${parsed.length} ${t.loadedFrom} ${csvPath}`)
+        const response = await fetch(`${intakeApiPath}?ts=${Date.now()}`)
+        if (!response.ok) throw new Error(`Intake API returned ${response.status}`)
+        const payload = (await response.json()) as {
+          entries: IntakeEntry[]
+          source: string
+        }
+        setEntries(payload.entries)
+        setStatus(`${payload.entries.length} ${t.loadedFrom} ${payload.source}`)
       } catch (error) {
-        setStatus(error instanceof Error ? error.message : t.failedCsv)
+        setStatus(error instanceof Error ? error.message : t.failedData)
       }
     }
 
-    loadCsv()
+    loadIntakeEntries()
   }, [t])
 
   const days = useMemo(() => groupIntakeByDay(entries), [entries])
   const plotDays = useMemo(() => {
-    const dayByDate = new Map(days.map((day) => [day.fecha, day]))
+    const dayByDate = new Map(days.map((day) => [day.date, day]))
     const startDate = parseLocalDate(weekStart)
 
     return Array.from({ length: 7 }, (_, index) => {
@@ -1337,7 +1338,7 @@ export function IntakeDashboard() {
   )
   const latestDay = visibleDays[visibleDays.length - 1]
   const activeDay =
-    days.find((day) => day.fecha === selectedDate) ??
+    days.find((day) => day.date === selectedDate) ??
     latestDay ??
     days[days.length - 1]
 
@@ -1346,10 +1347,10 @@ export function IntakeDashboard() {
 
   const summary = useMemo(() => {
     return {
-      avgCalories: average(visibleDays.map((day) => day.calorias)),
-      avgFat: average(visibleDays.map((day) => day.grasas)),
-      avgCarbs: average(visibleDays.map((day) => day.carbohidratos)),
-      avgProtein: average(visibleDays.map((day) => day.proteinas)),
+      avgCalories: average(visibleDays.map((day) => day.calories)),
+      avgFat: average(visibleDays.map((day) => day.fat)),
+      avgCarbs: average(visibleDays.map((day) => day.carbs)),
+      avgProtein: average(visibleDays.map((day) => day.protein)),
       totalFoods: visibleDays.reduce((sum, day) => sum + day.entries.length, 0),
     }
   }, [visibleDays])
@@ -1360,35 +1361,35 @@ export function IntakeDashboard() {
   function editNotes(entry: IntakeEntry) {
     setEditingNotes((current) => ({
       ...current,
-      [entry.rowIndex]: entry.notas,
+      [entry.id]: entry.notes,
     }))
     setNotesStatus((current) => ({
       ...current,
-      [entry.rowIndex]: "idle",
+      [entry.id]: "idle",
     }))
   }
 
-  function cancelNotes(rowIndex: number) {
+  function cancelNotes(id: number) {
     setEditingNotes((current) => {
       const next = { ...current }
-      delete next[rowIndex]
+      delete next[id]
       return next
     })
   }
 
-  function changeNotesDraft(rowIndex: number, value: string) {
+  function changeNotesDraft(id: number, value: string) {
     setEditingNotes((current) => ({
       ...current,
-      [rowIndex]: value,
+      [id]: value,
     }))
   }
 
   async function saveNotes(entry: IntakeEntry) {
-    const notas = editingNotes[entry.rowIndex] ?? ""
+    const notes = editingNotes[entry.id] ?? ""
 
     setNotesStatus((current) => ({
       ...current,
-      [entry.rowIndex]: "saving",
+      [entry.id]: "saving",
     }))
 
     try {
@@ -1398,8 +1399,8 @@ export function IntakeDashboard() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          rowIndex: entry.rowIndex,
-          notas,
+          id: entry.id,
+          notes,
         }),
       })
 
@@ -1407,18 +1408,18 @@ export function IntakeDashboard() {
 
       setEntries((current) =>
         current.map((item) =>
-          item.rowIndex === entry.rowIndex ? { ...item, notas } : item
+          item.id === entry.id ? { ...item, notes } : item
         )
       )
-      cancelNotes(entry.rowIndex)
+      cancelNotes(entry.id)
       setNotesStatus((current) => ({
         ...current,
-        [entry.rowIndex]: "idle",
+        [entry.id]: "idle",
       }))
     } catch {
       setNotesStatus((current) => ({
         ...current,
-        [entry.rowIndex]: "error",
+        [entry.id]: "error",
       }))
     }
   }
@@ -1507,7 +1508,7 @@ export function IntakeDashboard() {
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <CalendarDays className="size-4" />
               <span>{t.intakeRegister}</span>
-              <span>{t.lastDay} {formatDate(latestDay?.fecha ?? activeDay.fecha, language)}</span>
+              <span>{t.lastDay} {formatDate(latestDay?.date ?? activeDay.date, language)}</span>
             </div>
             <h1 className="mt-2 text-3xl font-semibold tracking-normal text-foreground">
               {t.caloriesAndMacros}
@@ -1516,7 +1517,7 @@ export function IntakeDashboard() {
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
               <RefreshCw />
-              {t.reloadCsv}
+              {t.reloadData}
             </Button>
             <LanguageSelector
               language={language}
@@ -1531,28 +1532,28 @@ export function IntakeDashboard() {
           <StatCard
             icon={Flame}
             label={t.currentCalories}
-            value={`${formatNumber(Math.round(activeDay.calorias), language)} kcal`}
-            detail={`${selectedEntries.length} ${t.foodsRegistered} ${formatDate(activeDay.fecha, language)}`}
+            value={`${formatNumber(Math.round(activeDay.calories), language)} kcal`}
+            detail={`${selectedEntries.length} ${t.foodsRegistered} ${formatDate(activeDay.date, language)}`}
             tone="gold"
           />
           <StatCard
             icon={Ham}
             label={t.protein}
-            value={`${Math.round(activeDay.proteinas)} g`}
+            value={`${Math.round(activeDay.protein)} g`}
             detail={`${Math.round(summary.avgProtein)} g ${t.average}`}
             tone="green"
           />
           <StatCard
             icon={Wheat}
             label={t.carbs}
-            value={`${Math.round(activeDay.carbohidratos)} g`}
+            value={`${Math.round(activeDay.carbs)} g`}
             detail={`${Math.round(summary.avgCarbs)} g ${t.average}`}
             tone="blue"
           />
           <StatCard
             icon={Salad}
             label={t.fats}
-            value={`${Math.round(activeDay.grasas)} g`}
+            value={`${Math.round(activeDay.fat)} g`}
             detail={`${Math.round(summary.avgFat)} g ${t.average}`}
           />
         </section>
@@ -1608,12 +1609,12 @@ export function IntakeDashboard() {
               <div className="mt-4 flex flex-wrap gap-2">
                 {visibleDays.map((day) => (
                   <Button
-                    key={day.fecha}
-                    variant={day.fecha === activeDay.fecha ? "default" : "outline"}
+                    key={day.date}
+                    variant={day.date === activeDay.date ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setSelectedDate(day.fecha)}
+                    onClick={() => setSelectedDate(day.date)}
                   >
-                    {formatDate(day.fecha, language)}
+                    {formatDate(day.date, language)}
                   </Button>
                 ))}
               </div>
@@ -1623,7 +1624,7 @@ export function IntakeDashboard() {
           <Card>
             <CardHeader>
               <CardTitle>{t.macroSplit}</CardTitle>
-              <CardDescription>{formatDate(activeDay.fecha, language)}</CardDescription>
+              <CardDescription>{formatDate(activeDay.date, language)}</CardDescription>
             </CardHeader>
             <CardContent>
               <MacroSplit day={activeDay} t={t} />
@@ -1655,7 +1656,7 @@ export function IntakeDashboard() {
           <div className="grid gap-4">
             <CalendarIntakeTracker
               days={days}
-              selectedDate={activeDay.fecha}
+              selectedDate={activeDay.date}
               onSelectDate={setSelectedDate}
               language={language}
               t={t}
@@ -1702,7 +1703,7 @@ export function IntakeDashboard() {
                   </span>
                 </div>
                 <p className="text-sm leading-6 text-muted-foreground">
-                  {t.activeFile}: {csvPath}. {t.workoutsCsvNote}
+                  {status}. {t.workoutsDataNote}
                 </p>
               </CardContent>
             </Card>

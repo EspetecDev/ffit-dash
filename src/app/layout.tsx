@@ -4,7 +4,7 @@ import "./globals.css"
 
 export const metadata: Metadata = {
   title: "Fitness Daily Log",
-  description: "CSV-backed dashboard for daily fitness tracking",
+  description: "Database-backed dashboard for daily fitness tracking",
 }
 
 export default function RootLayout({
