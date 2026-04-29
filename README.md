@@ -120,6 +120,45 @@ docker run -p 3000:3000 \
   ffit-dash
 ```
 
+## MCP Intake Upload
+
+The app includes an MCP stdio server so AI clients that support Model Context Protocol can upload intake data through the app API.
+
+Run it locally with:
+
+```bash
+FFIT_API_BASE_URL=http://localhost:3000 \
+FFIT_INGEST_TOKEN=change-me \
+npm run mcp:intake
+```
+
+Set `FFIT_API_BASE_URL` to the running dashboard URL. For example, if Docker Compose exposes the app on `5959:3000`, use `http://localhost:5959`.
+
+Example MCP client configuration:
+
+```json
+{
+  "mcpServers": {
+    "ffit-dash-intake": {
+      "command": "npm",
+      "args": ["run", "mcp:intake", "--"],
+      "cwd": "/path/to/ffit-dash",
+      "env": {
+        "FFIT_API_BASE_URL": "http://localhost:3000",
+        "FFIT_INGEST_TOKEN": "change-me"
+      }
+    }
+  }
+}
+```
+
+Available tools:
+
+- `upload_intake_entry`: creates one intake row.
+- `upload_intake_entries`: creates up to 100 intake rows in one call.
+
+Both tools accept `date`, `meal`, `food`, `quantity`, `unit`, `brand`, `calories`, `fat`, `carbs`, `protein`, `url`, and `notes`. `date` must use `YYYY-MM-DD`.
+
 ## Local Development
 
 ```bash
