@@ -1,0 +1,16 @@
+services:
+  ffit-dash:
+    build:
+      context: .
+    image: ffit-dash:local
+    ports:
+      - "3000:3000"
+    environment:
+      FFIT_DATA_DIR: /data/ffit
+      FFIT_INGEST_TOKEN: ${FFIT_INGEST_TOKEN:-change-me}
+    volumes:
+      - ffit-data:/data/ffit
+    restart: unless-stopped
+
+volumes:
+  ffit-data:

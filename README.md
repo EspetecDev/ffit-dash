@@ -53,9 +53,66 @@ Expected JSON fields:
 }
 ```
 
-For Docker, mount a persistent host folder to the configured data directory:
+## Docker
+
+The included `Dockerfile` builds a production Next.js image with standalone output. The included `docker-compose.yml` runs that image and stores SQLite data in a persistent Docker volume.
+
+1. Make sure Docker is running.
+
+2. Choose an ingest token. This token is required when creating new intake entries through `POST /api/intake`.
 
 ```bash
+export FFIT_INGEST_TOKEN=change-me
+```
+
+3. Build and start the app with Docker Compose.
+
+```bash
+docker compose up --build
+```
+
+4. Open the dashboard.
+
+```txt
+http://localhost:3000
+```
+
+5. Check that the API can read the SQLite database.
+
+```bash
+curl http://localhost:3000/api/intake
+```
+
+The Compose setup maps:
+
+```txt
+3000:3000
+ffit-data:/data/ffit
+```
+
+The app will create and update:
+
+```txt
+/data/ffit/ffit.db
+```
+
+To stop the app while keeping the SQLite data volume:
+
+```bash
+docker compose down
+```
+
+To remove the app and its persisted SQLite volume:
+
+```bash
+docker compose down --volumes
+```
+
+You can also build and run the image manually with a host-mounted data directory:
+
+```bash
+docker build -t ffit-dash .
+
 docker run -p 3000:3000 \
   -e FFIT_DATA_DIR=/data/ffit \
   -e FFIT_INGEST_TOKEN=change-me \
