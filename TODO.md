@@ -21,9 +21,9 @@ Implement user/session protection before enabling broad intake edits. Work these
 - Branch: `feature/protect-intake-mutations`
 - Goal: split human UI auth from machine ingestion auth.
 - Keep `POST /api/intake` token-based for MCP/import ingestion.
-- Require a valid admin session for human mutation endpoints.
-- Add shared auth checks for future `PATCH`/delete routes.
-- Acceptance: unauthenticated UI mutation requests fail, while authorized ingestion still works with `FFIT_INGEST_TOKEN`.
+- Require a valid admin session for human mutation endpoints such as note edits.
+- Add shared request auth helpers for future `PATCH`/delete routes.
+- Acceptance: unauthenticated UI mutation requests fail, admin-session note edits work, and authorized ingestion still works with `FFIT_INGEST_TOKEN`.
 
 ## 3. Intake Update API
 

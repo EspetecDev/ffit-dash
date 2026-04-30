@@ -2,20 +2,13 @@ import { NextRequest, NextResponse } from "next/server"
 
 import {
   createUser,
-  getSessionUser,
-  isAdmin,
+  getRequestAdmin,
   listUsers,
-  sessionCookieName,
   UserRole,
 } from "@/lib/auth"
 
-function getAdminUser(request: NextRequest) {
-  const user = getSessionUser(request.cookies.get(sessionCookieName)?.value)
-  return isAdmin(user) ? user : null
-}
-
 export async function GET(request: NextRequest) {
-  if (!getAdminUser(request)) {
+  if (!getRequestAdmin(request)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
@@ -23,7 +16,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!getAdminUser(request)) {
+  if (!getRequestAdmin(request)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
