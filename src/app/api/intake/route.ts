@@ -1,6 +1,12 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 
-import { createIntakeEntry, getIntakeDbPath, listIntakeEntries } from "@/lib/intake-db"
+import { getRequestAdmin } from "@/lib/auth"
+import {
+  createIntakeEntry,
+  getIntakeDbPath,
+  listIntakeEntries,
+  updateIntakeEntry,
+} from "@/lib/intake-db"
 
 function isAuthorized(request: Request) {
   const token = process.env.FFIT_INGEST_TOKEN
@@ -28,7 +34,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
@@ -41,6 +47,36 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to create intake entry" },
+      { status: 400 }
+    )
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  if (!getRequestAdmin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
+
+  try {
+    const body = (await request.json()) as Record<string, unknown>
+    const id = body.id
+
+    if (typeof id !== "number" || !Number.isInteger(id) || id < 1) {
+      return NextResponse.json({ error: "Invalid id" }, { status: 400 })
+    }
+
+    const result = updateIntakeEntry(id, body)
+    if (!result.ok) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: result.status }
+      )
+    }
+
+    return NextResponse.json({ entry: result.entry })
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to update intake entry" },
       { status: 400 }
     )
   }

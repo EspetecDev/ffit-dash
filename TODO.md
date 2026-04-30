@@ -32,7 +32,7 @@ Implement user/session protection before enabling broad intake edits. Work these
 - Add `updateIntakeEntry(id, input)` in `src/lib/intake-db.ts`.
 - Add `PATCH /api/intake` with validation and session protection.
 - Return the updated row so the UI can refresh local state.
-- Acceptance: an authenticated request can edit date, meal, food, quantity, unit, brand, calories, fat, carbs, protein, url, and notes.
+- Acceptance: an authenticated admin request can edit date, meal, food, quantity, unit, brand, calories, fat, carbs, protein, url, and notes, while logged-out requests fail.
 
 ## 4. Inline Edit Mode UI
 

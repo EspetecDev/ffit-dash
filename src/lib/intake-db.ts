@@ -242,6 +242,56 @@ export function createIntakeEntry(input: Record<string, unknown>) {
   return fromRow(row)
 }
 
+export function updateIntakeEntry(id: number, input: Record<string, unknown>) {
+  const database = getDb()
+  const entry = normalizeInput(input)
+  if (!entry.date) throw new Error("date is required")
+
+  const result = database
+    .prepare(`
+      update intake_entries
+      set
+        date = ?,
+        meal = ?,
+        food = ?,
+        quantity = ?,
+        unit = ?,
+        brand = ?,
+        calories = ?,
+        fat = ?,
+        carbs = ?,
+        protein = ?,
+        url = ?,
+        notes = ?,
+        updated_at = current_timestamp
+      where id = ?
+    `)
+    .run(
+      entry.date,
+      entry.meal,
+      entry.food,
+      entry.quantity,
+      entry.unit,
+      entry.brand,
+      entry.calories,
+      entry.fat,
+      entry.carbs,
+      entry.protein,
+      entry.url,
+      entry.notes,
+      id
+    )
+
+  if (result.changes === 0) {
+    return { ok: false, status: 404, error: "Intake row not found" }
+  }
+
+  const row = database.prepare("select * from intake_entries where id = ?").get(id)
+  if (!row) throw new Error("Failed to read updated intake entry")
+
+  return { ok: true, entry: fromRow(row) }
+}
+
 export function updateIntakeNotes(id: number, notes: string) {
   const result = getDb()
     .prepare("update intake_entries set notes = ?, updated_at = current_timestamp where id = ?")
