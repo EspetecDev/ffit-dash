@@ -25,7 +25,7 @@ If `FFIT_DATA_DIR` is not set, it uses:
 data/ffit.db
 ```
 
-The dashboard reads entries through `GET /api/intake`. Note edits use `POST /api/intake/notes`, require an authenticated admin session, and update SQLite directly.
+The dashboard reads entries through `GET /api/intake`. Note edits use `POST /api/intake/notes`, require an authenticated admin session, and update SQLite directly. Full row edits can be written through `PATCH /api/intake` with an authenticated admin session.
 
 New entries can be written through `POST /api/intake` with:
 
