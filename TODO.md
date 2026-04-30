@@ -8,7 +8,7 @@ Implement user/session protection before enabling broad intake edits. Work these
 - [x] 2. Protect Intake Mutations
 - [x] 3. Intake Update API
 - [x] 4. Inline Edit Mode UI
-- [ ] 5. Notes Endpoint Cleanup
+- [x] 5. Notes Endpoint Cleanup
 
 ## 1. Admin Session Auth - Done
 
@@ -52,11 +52,11 @@ Implement user/session protection before enabling broad intake edits. Work these
 - Update table state and totals after a successful save.
 - Acceptance: a logged-in user can edit one row, save, cancel, and see totals update correctly.
 
-## 5. Notes Endpoint Cleanup - Next
+## 5. Notes Endpoint Cleanup - Done
 
 - Branch: `feature/notes-endpoint-cleanup`
 - Goal: retire or deprecate the notes-only update path after full edit mode is stable.
 - Remove unused notes-only frontend state and handlers.
-- Keep `/api/intake/notes` only if compatibility is still needed.
+- Remove `/api/intake/notes` now that full-row edit mode is stable.
 - Update docs to describe the final edit/auth flow.
 - Acceptance: no dead notes-only UI code remains, and tests/checks pass.

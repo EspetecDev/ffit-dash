@@ -291,15 +291,3 @@ export function updateIntakeEntry(id: number, input: Record<string, unknown>) {
 
   return { ok: true, entry: fromRow(row) }
 }
-
-export function updateIntakeNotes(id: number, notes: string) {
-  const result = getDb()
-    .prepare("update intake_entries set notes = ?, updated_at = current_timestamp where id = ?")
-    .run(notes, id)
-
-  if (result.changes === 0) {
-    return { ok: false, status: 404, error: "Intake row not found" }
-  }
-
-  return { ok: true }
-}
