@@ -5,11 +5,16 @@ Implement user/session protection before enabling broad intake edits. Work these
 ## 1. Admin Session Auth
 
 - Branch: `feature/admin-session-auth`
-- Goal: add a minimal admin login and signed session cookie.
-- Add environment-backed credentials for a single admin user.
-- Add login/logout API routes and a small login screen or gate.
-- Add a server-side helper to read and validate the session.
-- Acceptance: a browser session can log in, persist across reloads, and log out.
+- Goal: add local account auth with admin-managed users.
+- Store users and sessions in SQLite.
+- Bootstrap the first admin from env when no admin exists.
+- Add login/logout/session APIs.
+- Add an admin dashboard for listing and creating users.
+- Do not expose public registration.
+- Require admin session for `POST /api/admin/users`.
+- Add a create-user form with manual password input and a generate-password button.
+- Show the created password once after successful creation.
+- Acceptance: admin can log in, create users from the dashboard only, reload keeps session, logout clears session, and non-admin or logged-out requests cannot create users.
 
 ## 2. Protect Intake Mutations
 
