@@ -22,6 +22,7 @@ import {
   Sun,
   Utensils,
   Wheat,
+  X,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -50,7 +51,8 @@ type DashboardView =
   | "nutrition-log"
   | "nutrition-day"
   | "workouts"
-type NotesState = Record<number, "idle" | "saving" | "error">
+type EditStatus = Record<number, "idle" | "saving" | "error">
+type IntakeDraft = Omit<IntakeEntry, "id">
 type Language = "ca" | "es" | "en"
 
 const languageLabels: Record<Language, string> = {
@@ -124,7 +126,7 @@ const copy = {
     save: "Desar",
     cancel: "Cancel.lar",
     saveError: "Error en desar",
-    editNotes: "Editar notes de",
+    editEntry: "Editar entrada de",
     loadingData: "Carregant dades",
     failedData: "No s'han pogut carregar les dades",
     loadedFrom: "aliments carregats des de",
@@ -184,7 +186,7 @@ const copy = {
     save: "Guardar",
     cancel: "Cancelar",
     saveError: "Error al guardar",
-    editNotes: "Editar notes de",
+    editEntry: "Editar entrada de",
     loadingData: "Cargando datos",
     failedData: "No se pudieron cargar los datos",
     loadedFrom: "alimentos cargados desde",
@@ -244,7 +246,7 @@ const copy = {
     save: "Save",
     cancel: "Cancel",
     saveError: "Save failed",
-    editNotes: "Edit notes for",
+    editEntry: "Edit entry for",
     loadingData: "Loading data",
     failedData: "Could not load data",
     loadedFrom: "foods loaded from",
@@ -278,6 +280,32 @@ function macroCalories(day: DailyIntake) {
     carbs: day.carbs * 4,
     protein: day.protein * 4,
   }
+}
+
+function draftFromEntry(entry: IntakeEntry): IntakeDraft {
+  return {
+    date: entry.date,
+    meal: entry.meal,
+    food: entry.food,
+    quantity: entry.quantity,
+    unit: entry.unit,
+    brand: entry.brand,
+    calories: entry.calories,
+    fat: entry.fat,
+    carbs: entry.carbs,
+    protein: entry.protein,
+    url: entry.url,
+    notes: entry.notes,
+  }
+}
+
+function numericDraftValue(value: number) {
+  return Number.isFinite(value) ? String(value) : ""
+}
+
+function parseDraftNumber(value: string) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
 function StatCard({
@@ -808,23 +836,29 @@ function IntakeTable({
   showDate = false,
   language,
   t,
-  editingNotes,
-  notesStatus,
-  onEditNotes,
-  onCancelNotes,
+  canEdit,
+  editingEntries,
+  editStatus,
+  onEditEntry,
+  onCancelEdit,
   onChangeDraft,
-  onSaveNotes,
+  onSaveEntry,
 }: {
   entries: IntakeEntry[]
   showDate?: boolean
   language: Language
   t: Copy
-  editingNotes: Record<number, string>
-  notesStatus: NotesState
-  onEditNotes: (entry: IntakeEntry) => void
-  onCancelNotes: (id: number) => void
-  onChangeDraft: (id: number, value: string) => void
-  onSaveNotes: (entry: IntakeEntry) => void
+  canEdit: boolean
+  editingEntries: Record<number, IntakeDraft>
+  editStatus: EditStatus
+  onEditEntry: (entry: IntakeEntry) => void
+  onCancelEdit: (id: number) => void
+  onChangeDraft: (
+    id: number,
+    field: keyof IntakeDraft,
+    value: string | number
+  ) => void
+  onSaveEntry: (entry: IntakeEntry) => void
 }) {
   const totals = entries.reduce(
     (acc, entry) => ({
@@ -879,7 +913,7 @@ function IntakeTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[1040px] text-left text-sm">
+      <table className="w-full min-w-[1180px] text-left text-sm">
         <thead className="border-b text-xs uppercase text-muted-foreground">
           <tr>
             {showDate ? <th className="py-3 pr-4 font-medium">{t.tableDate}</th> : null}
@@ -899,100 +933,262 @@ function IntakeTable({
             <Fragment key={group.moment}>
               {group.entries.map((entry, index) => (
                 <tr
-                  key={`${entry.date}-${entry.meal}-${entry.food}-${index}`}
+                  key={`${entry.id}-${index}`}
                   className="border-b last:border-0"
                 >
-                  {showDate ? (
-                    <td className="py-3 pr-4 font-medium">
-                      {formatDate(entry.date, language)}
-                    </td>
-                  ) : null}
-                  <td className="py-3 pr-4">
-                    <Badge variant="outline" className={mealTagClass(entry.meal)}>
-                      {entry.meal}
-                    </Badge>
-                  </td>
-                  <td className="py-3 pr-4">
-                    <div className="font-medium">{entry.food}</div>
-                    {entry.brand ? (
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {entry.brand}
-                      </div>
-                    ) : null}
-                  </td>
-                  <td className="py-3 pr-4">
-                    {[entry.quantity, entry.unit].filter(Boolean).join(" ")}
-                  </td>
-                  <td className="py-3 pr-4">
-                {formatNumber(Math.round(entry.calories), language)}
-                  </td>
-                  <td className="py-3 pr-4">{entry.fat} g</td>
-                  <td className="py-3 pr-4">{entry.carbs} g</td>
-                  <td className="py-3 pr-4">{entry.protein} g</td>
-                  <td className="min-w-[260px] max-w-[320px] py-3 pr-4">
-                    {editingNotes[entry.id] !== undefined ? (
-                      <div className="flex flex-col gap-2">
-                        <textarea
-                          className="min-h-20 w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
-                          value={editingNotes[entry.id]}
-                          onChange={(event) =>
-                            onChangeDraft(entry.id, event.target.value)
-                          }
-                        />
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => onSaveNotes(entry)}
-                            disabled={notesStatus[entry.id] === "saving"}
-                          >
-                            <Save />
-                            {t.save}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onCancelNotes(entry.id)}
-                          >
-                            {t.cancel}
-                          </Button>
-                          {notesStatus[entry.id] === "error" ? (
-                            <span className="text-xs text-red-500">
-                              {t.saveError}
+                  {(() => {
+                    const draft = editingEntries[entry.id]
+                    const isEditing = draft !== undefined
+
+                    return (
+                      <>
+                        {showDate ? (
+                          <td className="py-3 pr-4 font-medium">
+                            {isEditing ? (
+                              <input
+                                className="h-9 w-36 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                                type="date"
+                                value={draft.date}
+                                onChange={(event) =>
+                                  onChangeDraft(entry.id, "date", event.target.value)
+                                }
+                              />
+                            ) : (
+                              formatDate(entry.date, language)
+                            )}
+                          </td>
+                        ) : null}
+                        <td className="py-3 pr-4">
+                          {isEditing ? (
+                            <div className="flex min-w-36 flex-col gap-2">
+                              {!showDate ? (
+                                <input
+                                  className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                                  type="date"
+                                  value={draft.date}
+                                  onChange={(event) =>
+                                    onChangeDraft(entry.id, "date", event.target.value)
+                                  }
+                                />
+                              ) : null}
+                              <input
+                                className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                                value={draft.meal}
+                                onChange={(event) =>
+                                  onChangeDraft(entry.id, "meal", event.target.value)
+                                }
+                              />
+                            </div>
+                          ) : (
+                            <Badge variant="outline" className={mealTagClass(entry.meal)}>
+                              {entry.meal}
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="py-3 pr-4">
+                          {isEditing ? (
+                            <div className="flex min-w-44 flex-col gap-2">
+                              <input
+                                className="h-9 rounded-md border border-border bg-background px-2 text-sm font-medium text-foreground outline-none focus:ring-2 focus:ring-ring"
+                                value={draft.food}
+                                onChange={(event) =>
+                                  onChangeDraft(entry.id, "food", event.target.value)
+                                }
+                              />
+                              <input
+                                className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                                value={draft.brand}
+                                onChange={(event) =>
+                                  onChangeDraft(entry.id, "brand", event.target.value)
+                                }
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              <div className="font-medium">{entry.food}</div>
+                              {entry.brand ? (
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                  {entry.brand}
+                                </div>
+                              ) : null}
+                            </>
+                          )}
+                        </td>
+                        <td className="py-3 pr-4">
+                          {isEditing ? (
+                            <div className="grid min-w-40 grid-cols-2 gap-2">
+                              <input
+                                className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                                value={draft.quantity}
+                                onChange={(event) =>
+                                  onChangeDraft(entry.id, "quantity", event.target.value)
+                                }
+                              />
+                              <input
+                                className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                                value={draft.unit}
+                                onChange={(event) =>
+                                  onChangeDraft(entry.id, "unit", event.target.value)
+                                }
+                              />
+                            </div>
+                          ) : (
+                            [entry.quantity, entry.unit].filter(Boolean).join(" ")
+                          )}
+                        </td>
+                        <td className="py-3 pr-4">
+                          {isEditing ? (
+                            <input
+                              className="h-9 w-24 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                              min="0"
+                              type="number"
+                              value={numericDraftValue(draft.calories)}
+                              onChange={(event) =>
+                                onChangeDraft(
+                                  entry.id,
+                                  "calories",
+                                  parseDraftNumber(event.target.value)
+                                )
+                              }
+                            />
+                          ) : (
+                            formatNumber(Math.round(entry.calories), language)
+                          )}
+                        </td>
+                        <td className="py-3 pr-4">
+                          {isEditing ? (
+                            <input
+                              className="h-9 w-20 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                              min="0"
+                              step="0.1"
+                              type="number"
+                              value={numericDraftValue(draft.fat)}
+                              onChange={(event) =>
+                                onChangeDraft(entry.id, "fat", parseDraftNumber(event.target.value))
+                              }
+                            />
+                          ) : (
+                            `${entry.fat} g`
+                          )}
+                        </td>
+                        <td className="py-3 pr-4">
+                          {isEditing ? (
+                            <input
+                              className="h-9 w-20 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                              min="0"
+                              step="0.1"
+                              type="number"
+                              value={numericDraftValue(draft.carbs)}
+                              onChange={(event) =>
+                                onChangeDraft(entry.id, "carbs", parseDraftNumber(event.target.value))
+                              }
+                            />
+                          ) : (
+                            `${entry.carbs} g`
+                          )}
+                        </td>
+                        <td className="py-3 pr-4">
+                          {isEditing ? (
+                            <input
+                              className="h-9 w-20 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                              min="0"
+                              step="0.1"
+                              type="number"
+                              value={numericDraftValue(draft.protein)}
+                              onChange={(event) =>
+                                onChangeDraft(
+                                  entry.id,
+                                  "protein",
+                                  parseDraftNumber(event.target.value)
+                                )
+                              }
+                            />
+                          ) : (
+                            `${entry.protein} g`
+                          )}
+                        </td>
+                        <td className="min-w-[260px] max-w-[320px] py-3 pr-4">
+                          {isEditing ? (
+                            <textarea
+                              className="min-h-20 w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                              value={draft.notes}
+                              onChange={(event) =>
+                                onChangeDraft(entry.id, "notes", event.target.value)
+                              }
+                            />
+                          ) : (
+                            <span className="line-clamp-2 text-muted-foreground">
+                              {entry.notes || "-"}
                             </span>
-                          ) : null}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="line-clamp-2 text-muted-foreground">
-                          {entry.notes || "-"}
-                        </span>
-                        <Button
-                          aria-label={`${t.editNotes} ${entry.food}`}
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => onEditNotes(entry)}
-                        >
-                          <Edit3 />
-                        </Button>
-                      </div>
-                    )}
-                  </td>
-                  <td className="py-3">
-                    {entry.url ? (
-                      <a
-                        className="inline-flex items-center gap-1 text-primary hover:underline"
-                        href={entry.url}
-                        rel="noreferrer"
-                        target="_blank"
-                      >
-                        {t.source}
-                        <ExternalLink className="size-3" />
-                      </a>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </td>
+                          )}
+                        </td>
+                        <td className="py-3">
+                          {isEditing ? (
+                            <div className="flex min-w-48 flex-col gap-2">
+                              <input
+                                className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                                value={draft.url}
+                                onChange={(event) =>
+                                  onChangeDraft(entry.id, "url", event.target.value)
+                                }
+                              />
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => onSaveEntry(entry)}
+                                  disabled={editStatus[entry.id] === "saving"}
+                                >
+                                  <Save />
+                                  {t.save}
+                                </Button>
+                                <Button
+                                  aria-label={t.cancel}
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => onCancelEdit(entry.id)}
+                                  title={t.cancel}
+                                >
+                                  <X />
+                                </Button>
+                                {editStatus[entry.id] === "error" ? (
+                                  <span className="text-xs text-red-500">
+                                    {t.saveError}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between gap-2">
+                              {entry.url ? (
+                                <a
+                                  className="inline-flex items-center gap-1 text-primary hover:underline"
+                                  href={entry.url}
+                                  rel="noreferrer"
+                                  target="_blank"
+                                >
+                                  {t.source}
+                                  <ExternalLink className="size-3" />
+                                </a>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                              {canEdit ? (
+                                <Button
+                                  aria-label={`${t.editEntry} ${entry.food}`}
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => onEditEntry(entry)}
+                                  title={`${t.editEntry} ${entry.food}`}
+                                >
+                                  <Edit3 />
+                                </Button>
+                              ) : null}
+                            </div>
+                          )}
+                        </td>
+                      </>
+                    )
+                  })()}
                 </tr>
               ))}
               <tr className={cn("border-b text-sm font-medium", mealSubtotalClass(group.moment))}>
@@ -1040,12 +1236,13 @@ function IntakeLogView({
   t,
   onLanguageChange,
   onShowDayDetails,
-  editingNotes,
-  notesStatus,
-  onEditNotes,
-  onCancelNotes,
+  canEdit,
+  editingEntries,
+  editStatus,
+  onEditEntry,
+  onCancelEdit,
   onChangeDraft,
-  onSaveNotes,
+  onSaveEntry,
 }: {
   days: DailyIntake[]
   status: string
@@ -1053,12 +1250,17 @@ function IntakeLogView({
   t: Copy
   onLanguageChange: (language: Language) => void
   onShowDayDetails: (date: string) => void
-  editingNotes: Record<number, string>
-  notesStatus: NotesState
-  onEditNotes: (entry: IntakeEntry) => void
-  onCancelNotes: (id: number) => void
-  onChangeDraft: (id: number, value: string) => void
-  onSaveNotes: (entry: IntakeEntry) => void
+  canEdit: boolean
+  editingEntries: Record<number, IntakeDraft>
+  editStatus: EditStatus
+  onEditEntry: (entry: IntakeEntry) => void
+  onCancelEdit: (id: number) => void
+  onChangeDraft: (
+    id: number,
+    field: keyof IntakeDraft,
+    value: string | number
+  ) => void
+  onSaveEntry: (entry: IntakeEntry) => void
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -1110,12 +1312,13 @@ function IntakeLogView({
                 entries={day.entries}
                 language={language}
                 t={t}
-                editingNotes={editingNotes}
-                notesStatus={notesStatus}
-                onEditNotes={onEditNotes}
-                onCancelNotes={onCancelNotes}
+                canEdit={canEdit}
+                editingEntries={editingEntries}
+                editStatus={editStatus}
+                onEditEntry={onEditEntry}
+                onCancelEdit={onCancelEdit}
                 onChangeDraft={onChangeDraft}
-                onSaveNotes={onSaveNotes}
+                onSaveEntry={onSaveEntry}
               />
             </CardContent>
           </Card>
@@ -1134,13 +1337,14 @@ function DayDetailsView({
   language,
   t,
   onLanguageChange,
-  editingNotes,
-  notesStatus,
+  canEdit,
+  editingEntries,
+  editStatus,
   onBackToLog,
-  onEditNotes,
-  onCancelNotes,
+  onEditEntry,
+  onCancelEdit,
   onChangeDraft,
-  onSaveNotes,
+  onSaveEntry,
 }: {
   day: DailyIntake
   status: string
@@ -1148,13 +1352,18 @@ function DayDetailsView({
   language: Language
   t: Copy
   onLanguageChange: (language: Language) => void
-  editingNotes: Record<number, string>
-  notesStatus: NotesState
+  canEdit: boolean
+  editingEntries: Record<number, IntakeDraft>
+  editStatus: EditStatus
   onBackToLog: () => void
-  onEditNotes: (entry: IntakeEntry) => void
-  onCancelNotes: (id: number) => void
-  onChangeDraft: (id: number, value: string) => void
-  onSaveNotes: (entry: IntakeEntry) => void
+  onEditEntry: (entry: IntakeEntry) => void
+  onCancelEdit: (id: number) => void
+  onChangeDraft: (
+    id: number,
+    field: keyof IntakeDraft,
+    value: string | number
+  ) => void
+  onSaveEntry: (entry: IntakeEntry) => void
 }) {
   return (
     <>
@@ -1263,12 +1472,13 @@ function DayDetailsView({
             entries={day.entries}
             language={language}
             t={t}
-            editingNotes={editingNotes}
-            notesStatus={notesStatus}
-            onEditNotes={onEditNotes}
-            onCancelNotes={onCancelNotes}
+            canEdit={canEdit}
+            editingEntries={editingEntries}
+            editStatus={editStatus}
+            onEditEntry={onEditEntry}
+            onCancelEdit={onCancelEdit}
             onChangeDraft={onChangeDraft}
-            onSaveNotes={onSaveNotes}
+            onSaveEntry={onSaveEntry}
           />
         </CardContent>
       </Card>
@@ -1284,8 +1494,9 @@ export function IntakeDashboard() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [status, setStatus] = useState(copy.es.loadingData)
   const [activeView, setActiveView] = useState<DashboardView>("nutrition-overview")
-  const [editingNotes, setEditingNotes] = useState<Record<number, string>>({})
-  const [notesStatus, setNotesStatus] = useState<NotesState>({})
+  const [canEdit, setCanEdit] = useState(false)
+  const [editingEntries, setEditingEntries] = useState<Record<number, IntakeDraft>>({})
+  const [editStatus, setEditStatus] = useState<EditStatus>({})
 
   useEffect(() => {
     const storedLanguage = window.localStorage.getItem("language")
@@ -1299,6 +1510,24 @@ export function IntakeDashboard() {
     window.localStorage.setItem("language", nextLanguage)
     setLanguage(nextLanguage)
   }
+
+  useEffect(() => {
+    async function loadSession() {
+      try {
+        const response = await fetch("/api/auth/session", { cache: "no-store" })
+        if (!response.ok) throw new Error("Session request failed")
+
+        const payload = (await response.json()) as {
+          user: { role: string } | null
+        }
+        setCanEdit(payload.user?.role === "admin")
+      } catch {
+        setCanEdit(false)
+      }
+    }
+
+    loadSession()
+  }, [])
 
   useEffect(() => {
     async function loadIntakeEntries() {
@@ -1358,66 +1587,81 @@ export function IntakeDashboard() {
   const currentWeekStart = dateKey(startOfWeek(new Date()))
   const weekEnd = dateKey(addDays(parseLocalDate(weekStart), 6))
 
-  function editNotes(entry: IntakeEntry) {
-    setEditingNotes((current) => ({
+  function editEntry(entry: IntakeEntry) {
+    setEditingEntries((current) => ({
       ...current,
-      [entry.id]: entry.notes,
+      [entry.id]: draftFromEntry(entry),
     }))
-    setNotesStatus((current) => ({
+    setEditStatus((current) => ({
       ...current,
       [entry.id]: "idle",
     }))
   }
 
-  function cancelNotes(id: number) {
-    setEditingNotes((current) => {
+  function cancelEdit(id: number) {
+    setEditingEntries((current) => {
       const next = { ...current }
       delete next[id]
       return next
     })
   }
 
-  function changeNotesDraft(id: number, value: string) {
-    setEditingNotes((current) => ({
-      ...current,
-      [id]: value,
-    }))
+  function changeEntryDraft(
+    id: number,
+    field: keyof IntakeDraft,
+    value: string | number
+  ) {
+    setEditingEntries((current) => {
+      const draft = current[id]
+      if (!draft) return current
+
+      return {
+        ...current,
+        [id]: {
+          ...draft,
+          [field]: value,
+        },
+      }
+    })
   }
 
-  async function saveNotes(entry: IntakeEntry) {
-    const notes = editingNotes[entry.id] ?? ""
+  async function saveEntry(entry: IntakeEntry) {
+    const draft = editingEntries[entry.id]
+    if (!draft) return
 
-    setNotesStatus((current) => ({
+    setEditStatus((current) => ({
       ...current,
       [entry.id]: "saving",
     }))
 
     try {
-      const response = await fetch("/api/intake/notes", {
-        method: "POST",
+      const response = await fetch(intakeApiPath, {
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           id: entry.id,
-          notes,
+          ...draft,
         }),
       })
 
-      if (!response.ok) throw new Error("Failed to save notes")
+      if (!response.ok) throw new Error("Failed to save entry")
+
+      const payload = (await response.json()) as { entry: IntakeEntry }
 
       setEntries((current) =>
         current.map((item) =>
-          item.id === entry.id ? { ...item, notes } : item
+          item.id === entry.id ? payload.entry : item
         )
       )
-      cancelNotes(entry.id)
-      setNotesStatus((current) => ({
+      cancelEdit(entry.id)
+      setEditStatus((current) => ({
         ...current,
         [entry.id]: "idle",
       }))
     } catch {
-      setNotesStatus((current) => ({
+      setEditStatus((current) => ({
         ...current,
         [entry.id]: "error",
       }))
@@ -1458,12 +1702,13 @@ export function IntakeDashboard() {
               t={t}
               onLanguageChange={changeLanguage}
               onShowDayDetails={showDayDetails}
-              editingNotes={editingNotes}
-              notesStatus={notesStatus}
-              onEditNotes={editNotes}
-              onCancelNotes={cancelNotes}
-              onChangeDraft={changeNotesDraft}
-              onSaveNotes={saveNotes}
+              canEdit={canEdit}
+              editingEntries={editingEntries}
+              editStatus={editStatus}
+              onEditEntry={editEntry}
+              onCancelEdit={cancelEdit}
+              onChangeDraft={changeEntryDraft}
+              onSaveEntry={saveEntry}
             />
           ) : activeView === "nutrition-day" ? (
             <DayDetailsView
@@ -1473,13 +1718,14 @@ export function IntakeDashboard() {
               language={language}
               t={t}
               onLanguageChange={changeLanguage}
-              editingNotes={editingNotes}
-              notesStatus={notesStatus}
+              canEdit={canEdit}
+              editingEntries={editingEntries}
+              editStatus={editStatus}
               onBackToLog={() => setActiveView("nutrition-log")}
-              onEditNotes={editNotes}
-              onCancelNotes={cancelNotes}
-              onChangeDraft={changeNotesDraft}
-              onSaveNotes={saveNotes}
+              onEditEntry={editEntry}
+              onCancelEdit={cancelEdit}
+              onChangeDraft={changeEntryDraft}
+              onSaveEntry={saveEntry}
             />
           ) : activeView === "workouts" ? (
             <div className="flex flex-col gap-4">
@@ -1643,12 +1889,13 @@ export function IntakeDashboard() {
                 entries={selectedEntries}
                 language={language}
                 t={t}
-                editingNotes={editingNotes}
-                notesStatus={notesStatus}
-                onEditNotes={editNotes}
-                onCancelNotes={cancelNotes}
-                onChangeDraft={changeNotesDraft}
-                onSaveNotes={saveNotes}
+                canEdit={canEdit}
+                editingEntries={editingEntries}
+                editStatus={editStatus}
+                onEditEntry={editEntry}
+                onCancelEdit={cancelEdit}
+                onChangeDraft={changeEntryDraft}
+                onSaveEntry={saveEntry}
               />
             </CardContent>
           </Card>
