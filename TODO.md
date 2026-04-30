@@ -2,7 +2,15 @@
 
 Implement user/session protection before enabling broad intake edits. Work these branches in order so mutation APIs are protected before the UI exposes edit controls.
 
-## 1. Admin Session Auth
+## Progress
+
+- [x] 1. Admin Session Auth
+- [x] 2. Protect Intake Mutations
+- [x] 3. Intake Update API
+- [x] 4. Inline Edit Mode UI
+- [ ] 5. Notes Endpoint Cleanup
+
+## 1. Admin Session Auth - Done
 
 - Branch: `feature/admin-session-auth`
 - Goal: add local account auth with admin-managed users.
@@ -16,7 +24,7 @@ Implement user/session protection before enabling broad intake edits. Work these
 - Show the created password once after successful creation.
 - Acceptance: admin can log in, create users from the dashboard only, reload keeps session, logout clears session, and non-admin or logged-out requests cannot create users.
 
-## 2. Protect Intake Mutations
+## 2. Protect Intake Mutations - Done
 
 - Branch: `feature/protect-intake-mutations`
 - Goal: split human UI auth from machine ingestion auth.
@@ -25,7 +33,7 @@ Implement user/session protection before enabling broad intake edits. Work these
 - Add shared request auth helpers for future `PATCH`/delete routes.
 - Acceptance: unauthenticated UI mutation requests fail, admin-session note edits work, and authorized ingestion still works with `FFIT_INGEST_TOKEN`.
 
-## 3. Intake Update API
+## 3. Intake Update API - Done
 
 - Branch: `feature/intake-update-api`
 - Goal: add a full-row update endpoint for intake entries.
@@ -34,7 +42,7 @@ Implement user/session protection before enabling broad intake edits. Work these
 - Return the updated row so the UI can refresh local state.
 - Acceptance: an authenticated admin request can edit date, meal, food, quantity, unit, brand, calories, fat, carbs, protein, url, and notes, while logged-out requests fail.
 
-## 4. Inline Edit Mode UI
+## 4. Inline Edit Mode UI - Done
 
 - Branch: `feature/edit-mode-value-modification`
 - Goal: add row-level edit mode in the intake table.
@@ -44,7 +52,7 @@ Implement user/session protection before enabling broad intake edits. Work these
 - Update table state and totals after a successful save.
 - Acceptance: a logged-in user can edit one row, save, cancel, and see totals update correctly.
 
-## 5. Notes Endpoint Cleanup
+## 5. Notes Endpoint Cleanup - Next
 
 - Branch: `feature/notes-endpoint-cleanup`
 - Goal: retire or deprecate the notes-only update path after full edit mode is stable.
