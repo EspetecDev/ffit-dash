@@ -159,6 +159,23 @@ Available tools:
 
 Both tools accept `date`, `meal`, `food`, `quantity`, `unit`, `brand`, `calories`, `fat`, `carbs`, `protein`, `url`, and `notes`. `date` must use `YYYY-MM-DD`.
 
+## Admin Accounts
+
+Open the admin dashboard at:
+
+```txt
+http://localhost:3000/admin
+```
+
+The first admin account is bootstrapped from environment variables when no admin user exists:
+
+```bash
+FFIT_ADMIN_USERNAME=admin
+FFIT_ADMIN_PASSWORD=change-me-admin-password
+```
+
+After logging in, admins can list users and create new `user` or `admin` accounts. Public registration is not available; `POST /api/admin/users` requires an authenticated admin session. Passwords are hashed before storage, and generated or manually entered passwords are only shown once after user creation.
+
 ## Local Development
 
 ```bash
