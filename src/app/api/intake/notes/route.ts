@@ -1,8 +1,13 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 
+import { getRequestAdmin } from "@/lib/auth"
 import { updateIntakeNotes } from "@/lib/intake-db"
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  if (!getRequestAdmin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
+
   const body = (await request.json()) as {
     id?: unknown
     notes?: unknown

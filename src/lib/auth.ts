@@ -1,6 +1,7 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto"
 import { mkdirSync } from "node:fs"
 import path from "node:path"
+import { NextRequest } from "next/server"
 
 export const sessionCookieName = "ffit_session"
 
@@ -236,4 +237,13 @@ export function deleteSession(token?: string | null) {
 
 export function isAdmin(user: AuthUser | null) {
   return user?.role === "admin"
+}
+
+export function getRequestUser(request: NextRequest) {
+  return getSessionUser(request.cookies.get(sessionCookieName)?.value)
+}
+
+export function getRequestAdmin(request: NextRequest) {
+  const user = getRequestUser(request)
+  return isAdmin(user) ? user : null
 }
