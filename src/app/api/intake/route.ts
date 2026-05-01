@@ -15,11 +15,28 @@ function isAuthorized(request: Request) {
   return request.headers.get("authorization") === `Bearer ${token}`
 }
 
-export async function GET(request: NextRequest) {
+function requireIntakeUser(request: NextRequest) {
   const user = getRequestUser(request)
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    return {
+      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+      user: null,
+    }
   }
+
+  if (user.role === "admin") {
+    return {
+      error: NextResponse.json({ error: "Admins manage accounts only" }, { status: 403 }),
+      user: null,
+    }
+  }
+
+  return { error: null, user }
+}
+
+export async function GET(request: NextRequest) {
+  const { error, user } = requireIntakeUser(request)
+  if (error) return error
 
   try {
     const entries = listIntakeEntries(user.id)
@@ -58,10 +75,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const user = getRequestUser(request)
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const { error, user } = requireIntakeUser(request)
+  if (error) return error
 
   try {
     const body = (await request.json()) as Record<string, unknown>

@@ -110,45 +110,31 @@ function ensureSchema(database: SqliteDatabase) {
   throw new Error("Unsupported intake_entries database schema")
 }
 
-function firstAdminUserId(database: SqliteDatabase) {
-  bootstrapAdminUser()
-
-  const admin = database
-    .prepare("select id from users where role = 'admin' order by created_at asc, id asc limit 1")
-    .get()
-
-  if (admin) return Number(admin.id)
-
-  const user = database
-    .prepare("select id from users order by created_at asc, id asc limit 1")
-    .get()
-
-  return user ? Number(user.id) : null
-}
-
 function ingestOwnerId(database: SqliteDatabase) {
   bootstrapAdminUser()
 
   const username = process.env.FFIT_INGEST_USERNAME?.trim()
-  if (username) {
-    const user = database
-      .prepare("select id from users where username = ? limit 1")
-      .get(username)
+  if (!username) return null
 
-    if (!user) {
-      throw new Error(`FFIT_INGEST_USERNAME "${username}" does not match an existing user`)
-    }
+  const user = database
+    .prepare("select id, role from users where username = ? limit 1")
+    .get(username)
 
-    return Number(user.id)
+  if (!user) {
+    throw new Error(`FFIT_INGEST_USERNAME "${username}" does not match an existing user`)
   }
 
-  return firstAdminUserId(database)
+  if (user.role !== "user") {
+    throw new Error(`FFIT_INGEST_USERNAME "${username}" must reference a user account, not an admin account`)
+  }
+
+  return Number(user.id)
 }
 
 function requireDefaultOwnerId(database: SqliteDatabase) {
   const ownerId = ingestOwnerId(database)
   if (!ownerId) {
-    throw new Error("No intake owner is available. Configure FFIT_INGEST_USERNAME for an existing user or set FFIT_ADMIN_USERNAME and FFIT_ADMIN_PASSWORD to bootstrap the first admin user.")
+    throw new Error("No intake owner is available. Configure FFIT_INGEST_USERNAME for an existing user account.")
   }
 
   return ownerId

@@ -11,7 +11,7 @@ The app stores intake data in a local SQLite database. For self-hosting, set:
 ```bash
 FFIT_DATA_DIR=/data/ffit
 FFIT_INGEST_TOKEN=change-me
-FFIT_INGEST_USERNAME=admin
+FFIT_INGEST_USERNAME=demo-user
 ```
 
 The app will create and update:
@@ -26,7 +26,7 @@ If `FFIT_DATA_DIR` is not set, it uses:
 data/ffit.db
 ```
 
-The dashboard requires login before reading intake data. `GET /api/intake` returns only the current user's entries. Logged-in `admin` and `user` accounts can edit their own rows through `PATCH /api/intake`; account creation remains admin-only.
+The dashboard requires login before reading intake data. `GET /api/intake` returns only the current user's entries. Normal `user` accounts can edit their own rows through `PATCH /api/intake`. Admin accounts are reserved for account management in `/admin`.
 
 New entries can be written through `POST /api/intake` with:
 
@@ -35,7 +35,7 @@ Authorization: Bearer $FFIT_INGEST_TOKEN
 Content-Type: application/json
 ```
 
-Token ingestion writes rows to `FFIT_INGEST_USERNAME` when it is set. The username must already exist. If `FFIT_INGEST_USERNAME` is not set, ingestion uses the first admin account, bootstrapping it from `FFIT_ADMIN_USERNAME` and `FFIT_ADMIN_PASSWORD` when needed.
+Token ingestion writes rows to `FFIT_INGEST_USERNAME`. The username must already exist and must have the `user` role. Admin accounts cannot own intake rows.
 
 Expected JSON fields:
 
@@ -66,7 +66,7 @@ The included `Dockerfile` builds a production Next.js image with standalone outp
 
 ```bash
 export FFIT_INGEST_TOKEN=change-me
-export FFIT_INGEST_USERNAME=admin
+export FFIT_INGEST_USERNAME=demo-user
 export FFIT_ADMIN_USERNAME=admin
 export FFIT_ADMIN_PASSWORD=change-me-admin-password
 ```
@@ -122,7 +122,7 @@ docker build -t ffit-dash .
 docker run -p 3000:3000 \
   -e FFIT_DATA_DIR=/data/ffit \
   -e FFIT_INGEST_TOKEN=change-me \
-  -e FFIT_INGEST_USERNAME=admin \
+  -e FFIT_INGEST_USERNAME=demo-user \
   -e FFIT_ADMIN_USERNAME=admin \
   -e FFIT_ADMIN_PASSWORD=change-me-admin-password \
   -v ~/ffit-data:/data/ffit \
@@ -168,7 +168,7 @@ Available tools:
 
 Both tools accept `date`, `meal`, `food`, `quantity`, `unit`, `brand`, `calories`, `fat`, `carbs`, `protein`, `url`, and `notes`. `date` must use `YYYY-MM-DD`.
 
-MCP uploads use the same token ingestion owner rule as `POST /api/intake`: set `FFIT_INGEST_USERNAME` on the running dashboard service to choose which account receives uploaded rows.
+MCP uploads use the same token ingestion owner rule as `POST /api/intake`: set `FFIT_INGEST_USERNAME` on the running dashboard service to choose which user account receives uploaded rows.
 
 ## Admin Accounts
 
@@ -187,7 +187,7 @@ FFIT_ADMIN_PASSWORD=change-me-admin-password
 
 After logging in, admins can list users and create new `user` or `admin` accounts. Public registration is not available; `POST /api/admin/users` requires an authenticated admin session. Passwords are hashed before storage, and generated or manually entered passwords are only shown once after user creation.
 
-Both `admin` and `user` accounts can log into the main dashboard. Each account sees and edits only its own intake entries. Admin role is only required for account management.
+Only `user` accounts can use the main intake dashboard. Each user sees and edits only their own intake entries. Admin role is only for account management.
 
 ## Local Development
 

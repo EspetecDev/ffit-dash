@@ -6,7 +6,7 @@ Goal: let each dashboard user log in, see only their own intake data, and modify
 
 1. Add intake ownership storage - Done
    - Add `user_id` to `intake_entries`.
-   - Migrate existing rows to the first admin user.
+   - Migrate existing rows to the configured ingest user.
    - Keep database initialization deterministic for local and Docker deployments.
 
 2. Scope intake APIs to sessions - Done
@@ -20,7 +20,7 @@ Goal: let each dashboard user log in, see only their own intake data, and modify
 
 4. Update dashboard login behavior - Done
    - Require login before showing intake data.
-   - Let both `admin` and `user` accounts create and edit their own rows.
+   - Let `user` accounts create and edit their own rows.
    - Keep account creation restricted to admins.
 
 5. Add validation and docs - Done
@@ -31,8 +31,8 @@ Goal: let each dashboard user log in, see only their own intake data, and modify
 
 1. Start the app with `FFIT_ADMIN_USERNAME`, `FFIT_ADMIN_PASSWORD`, `FFIT_INGEST_TOKEN`, and `FFIT_INGEST_USERNAME`.
 2. Open `/` while logged out and confirm the intake dashboard asks for login.
-3. Log in as admin, confirm admin-owned intake rows appear, and edit one row.
+3. Log in as admin on `/` and confirm the dashboard sends the admin to `/admin` instead of showing intake data.
 4. Open `/admin`, create a normal `user` account, and confirm account creation is admin-only.
-5. Log in as the normal user on `/`, confirm admin rows are hidden, and edit a user-owned row.
-6. Upload an intake row through `POST /api/intake` or MCP and confirm it appears for `FFIT_INGEST_USERNAME`.
+5. Set `FFIT_INGEST_USERNAME` to that normal user and upload an intake row through `POST /api/intake` or MCP.
+6. Log in as the normal user on `/`, confirm the uploaded row appears, and edit it.
 7. Log out and confirm `/api/intake` returns `401` without a session.

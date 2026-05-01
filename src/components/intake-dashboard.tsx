@@ -139,6 +139,7 @@ const copy = {
     password: "Contrasenya",
     loginRequired: "Inicia sessio per veure el teu registre d'ingesta.",
     loginError: "No s'ha pogut iniciar sessio",
+    adminDashboardOnly: "Aquest compte nomes gestiona usuaris des del panell admin.",
     loadingData: "Carregant dades",
     failedData: "No s'han pogut carregar les dades",
     loadedFrom: "aliments carregats des de",
@@ -205,6 +206,7 @@ const copy = {
     password: "Contrasena",
     loginRequired: "Inicia sesion para ver tu registro de ingesta.",
     loginError: "No se pudo iniciar sesion",
+    adminDashboardOnly: "Esta cuenta solo gestiona usuarios desde el panel admin.",
     loadingData: "Cargando datos",
     failedData: "No se pudieron cargar los datos",
     loadedFrom: "alimentos cargados desde",
@@ -271,6 +273,7 @@ const copy = {
     password: "Password",
     loginRequired: "Log in to view your intake register.",
     loginError: "Could not log in",
+    adminDashboardOnly: "This account only manages users from the admin panel.",
     loadingData: "Loading data",
     failedData: "Could not load data",
     loadedFrom: "foods loaded from",
@@ -1568,9 +1571,12 @@ export function IntakeDashboard() {
         user: SessionUser | null
       }
       setSessionUser(payload.user)
-      setCanEdit(Boolean(payload.user))
-      if (payload.user) {
+      setCanEdit(payload.user?.role === "user")
+      if (payload.user?.role === "user") {
         await loadIntakeEntries()
+      } else if (payload.user?.role === "admin") {
+        setEntries([])
+        setStatus(t.adminDashboardOnly)
       } else {
         setEntries([])
         setStatus(t.loginRequired)
@@ -1794,6 +1800,39 @@ export function IntakeDashboard() {
                 </form>
               </CardContent>
             ) : null}
+          </Card>
+        </main>
+      </div>
+    )
+  }
+
+  if (sessionUser.role === "admin") {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <SidebarNav activeView={activeView} onViewChange={setActiveView} t={t} />
+        <main className="flex min-h-screen items-center justify-center p-6 md:pl-64">
+          <Card className="max-w-md">
+            <CardHeader>
+              <CardTitle>{t.intakeRegister}</CardTitle>
+              <CardDescription>{t.adminDashboardOnly}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="default">{sessionUser.username}</Badge>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    window.location.href = "/admin"
+                  }}
+                >
+                  Admin
+                </Button>
+                <Button variant="outline" onClick={logout}>
+                  <LogOut />
+                  {t.logout}
+                </Button>
+              </div>
+            </CardContent>
           </Card>
         </main>
       </div>
