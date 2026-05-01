@@ -126,10 +126,29 @@ function firstAdminUserId(database: SqliteDatabase) {
   return user ? Number(user.id) : null
 }
 
+function ingestOwnerId(database: SqliteDatabase) {
+  bootstrapAdminUser()
+
+  const username = process.env.FFIT_INGEST_USERNAME?.trim()
+  if (username) {
+    const user = database
+      .prepare("select id from users where username = ? limit 1")
+      .get(username)
+
+    if (!user) {
+      throw new Error(`FFIT_INGEST_USERNAME "${username}" does not match an existing user`)
+    }
+
+    return Number(user.id)
+  }
+
+  return firstAdminUserId(database)
+}
+
 function requireDefaultOwnerId(database: SqliteDatabase) {
-  const ownerId = firstAdminUserId(database)
+  const ownerId = ingestOwnerId(database)
   if (!ownerId) {
-    throw new Error("No intake owner is available. Configure FFIT_ADMIN_USERNAME and FFIT_ADMIN_PASSWORD to bootstrap the first admin user.")
+    throw new Error("No intake owner is available. Configure FFIT_INGEST_USERNAME for an existing user or set FFIT_ADMIN_USERNAME and FFIT_ADMIN_PASSWORD to bootstrap the first admin user.")
   }
 
   return ownerId

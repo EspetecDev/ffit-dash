@@ -14,7 +14,7 @@ Goal: let each dashboard user log in, see only their own intake data, and modify
    - Restrict `PATCH /api/intake` to rows owned by the current user.
    - Keep MCP/import ingestion separate from human dashboard auth.
 
-3. Decide and implement MCP ownership
+3. Decide and implement MCP ownership - Done
    - Start with a default ingest owner so token ingestion remains usable.
    - Document the owner selection rule.
 
