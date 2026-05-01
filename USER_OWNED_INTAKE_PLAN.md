@@ -18,7 +18,7 @@ Goal: let each dashboard user log in, see only their own intake data, and modify
    - Start with a default ingest owner so token ingestion remains usable.
    - Document the owner selection rule.
 
-4. Update dashboard login behavior
+4. Update dashboard login behavior - Done
    - Require login before showing intake data.
    - Let both `admin` and `user` accounts create and edit their own rows.
    - Keep account creation restricted to admins.

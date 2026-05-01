@@ -1,6 +1,6 @@
 "use client"
 
-import { Fragment, useEffect, useMemo, useState } from "react"
+import { FormEvent, Fragment, useCallback, useEffect, useMemo, useState } from "react"
 import {
   ArrowLeft,
   CalendarDays,
@@ -13,6 +13,7 @@ import {
   Ham,
   LayoutDashboard,
   List,
+  LogOut,
   Moon,
   PieChart,
   RefreshCw,
@@ -54,6 +55,11 @@ type DashboardView =
 type EditStatus = Record<number, "idle" | "saving" | "error">
 type IntakeDraft = Omit<IntakeEntry, "id" | "userId">
 type Language = "ca" | "es" | "en"
+type SessionUser = {
+  id: number
+  username: string
+  role: "admin" | "user"
+}
 
 const languageLabels: Record<Language, string> = {
   ca: "CA",
@@ -127,6 +133,12 @@ const copy = {
     cancel: "Cancel.lar",
     saveError: "Error en desar",
     editEntry: "Editar entrada de",
+    login: "Iniciar sessio",
+    logout: "Tancar sessio",
+    username: "Usuari",
+    password: "Contrasenya",
+    loginRequired: "Inicia sessio per veure el teu registre d'ingesta.",
+    loginError: "No s'ha pogut iniciar sessio",
     loadingData: "Carregant dades",
     failedData: "No s'han pogut carregar les dades",
     loadedFrom: "aliments carregats des de",
@@ -187,6 +199,12 @@ const copy = {
     cancel: "Cancelar",
     saveError: "Error al guardar",
     editEntry: "Editar entrada de",
+    login: "Iniciar sesion",
+    logout: "Cerrar sesion",
+    username: "Usuario",
+    password: "Contrasena",
+    loginRequired: "Inicia sesion para ver tu registro de ingesta.",
+    loginError: "No se pudo iniciar sesion",
     loadingData: "Cargando datos",
     failedData: "No se pudieron cargar los datos",
     loadedFrom: "alimentos cargados desde",
@@ -247,6 +265,12 @@ const copy = {
     cancel: "Cancel",
     saveError: "Save failed",
     editEntry: "Edit entry for",
+    login: "Login",
+    logout: "Logout",
+    username: "Username",
+    password: "Password",
+    loginRequired: "Log in to view your intake register.",
+    loginError: "Could not log in",
     loadingData: "Loading data",
     failedData: "Could not load data",
     loadedFrom: "foods loaded from",
@@ -760,6 +784,10 @@ function LanguageSelector({
       ))}
     </div>
   )
+}
+
+function inputClass() {
+  return "h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
 }
 
 function SidebarNav({
@@ -1494,6 +1522,11 @@ export function IntakeDashboard() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [status, setStatus] = useState(copy.es.loadingData)
   const [activeView, setActiveView] = useState<DashboardView>("nutrition-overview")
+  const [sessionUser, setSessionUser] = useState<SessionUser | null>(null)
+  const [sessionLoaded, setSessionLoaded] = useState(false)
+  const [loginUsername, setLoginUsername] = useState("")
+  const [loginPassword, setLoginPassword] = useState("")
+  const [loginMessage, setLoginMessage] = useState("")
   const [canEdit, setCanEdit] = useState(false)
   const [editingEntries, setEditingEntries] = useState<Record<number, IntakeDraft>>({})
   const [editStatus, setEditStatus] = useState<EditStatus>({})
@@ -1511,42 +1544,89 @@ export function IntakeDashboard() {
     setLanguage(nextLanguage)
   }
 
-  useEffect(() => {
-    async function loadSession() {
-      try {
-        const response = await fetch("/api/auth/session", { cache: "no-store" })
-        if (!response.ok) throw new Error("Session request failed")
-
-        const payload = (await response.json()) as {
-          user: { role: string } | null
-        }
-        setCanEdit(payload.user?.role === "admin")
-      } catch {
-        setCanEdit(false)
+  const loadIntakeEntries = useCallback(async () => {
+    try {
+      const response = await fetch(`${intakeApiPath}?ts=${Date.now()}`)
+      if (!response.ok) throw new Error(`Intake API returned ${response.status}`)
+      const payload = (await response.json()) as {
+        entries: IntakeEntry[]
+        source: string
       }
+      setEntries(payload.entries)
+      setStatus(`${payload.entries.length} ${t.loadedFrom} ${payload.source}`)
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t.failedData)
     }
-
-    loadSession()
-  }, [])
-
-  useEffect(() => {
-    async function loadIntakeEntries() {
-      try {
-        const response = await fetch(`${intakeApiPath}?ts=${Date.now()}`)
-        if (!response.ok) throw new Error(`Intake API returned ${response.status}`)
-        const payload = (await response.json()) as {
-          entries: IntakeEntry[]
-          source: string
-        }
-        setEntries(payload.entries)
-        setStatus(`${payload.entries.length} ${t.loadedFrom} ${payload.source}`)
-      } catch (error) {
-        setStatus(error instanceof Error ? error.message : t.failedData)
-      }
-    }
-
-    loadIntakeEntries()
   }, [t])
+
+  const loadSession = useCallback(async () => {
+    try {
+      const response = await fetch("/api/auth/session", { cache: "no-store" })
+      if (!response.ok) throw new Error("Session request failed")
+
+      const payload = (await response.json()) as {
+        user: SessionUser | null
+      }
+      setSessionUser(payload.user)
+      setCanEdit(Boolean(payload.user))
+      if (payload.user) {
+        await loadIntakeEntries()
+      } else {
+        setEntries([])
+        setStatus(t.loginRequired)
+      }
+    } catch {
+      setSessionUser(null)
+      setCanEdit(false)
+      setEntries([])
+      setStatus(t.loginRequired)
+    } finally {
+      setSessionLoaded(true)
+    }
+  }, [loadIntakeEntries, t])
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      loadSession()
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [loadSession])
+
+  async function login(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setLoginMessage("")
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: loginUsername,
+          password: loginPassword,
+        }),
+      })
+
+      if (!response.ok) throw new Error(t.loginError)
+
+      setLoginPassword("")
+      await loadSession()
+    } catch (error) {
+      setLoginMessage(error instanceof Error ? error.message : t.loginError)
+    }
+  }
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" })
+    setSessionUser(null)
+    setCanEdit(false)
+    setEntries([])
+    setSelectedDate(null)
+    setEditingEntries({})
+    setStatus(t.loginRequired)
+  }
 
   const days = useMemo(() => groupIntakeByDay(entries), [entries])
   const plotDays = useMemo(() => {
@@ -1673,6 +1753,53 @@ export function IntakeDashboard() {
     setActiveView("nutrition-day")
   }
 
+  if (!sessionLoaded || !sessionUser) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <SidebarNav activeView={activeView} onViewChange={setActiveView} t={t} />
+        <main className="flex min-h-screen items-center justify-center p-6 md:pl-64">
+          <Card className="max-w-md">
+            <CardHeader>
+              <CardTitle>{t.login}</CardTitle>
+              <CardDescription>
+                {sessionLoaded ? t.loginRequired : t.loadingData}
+              </CardDescription>
+            </CardHeader>
+            {sessionLoaded ? (
+              <CardContent>
+                <form className="grid gap-3" onSubmit={login}>
+                  <label className="grid gap-1 text-sm">
+                    {t.username}
+                    <input
+                      className={inputClass()}
+                      value={loginUsername}
+                      onChange={(event) => setLoginUsername(event.target.value)}
+                      autoComplete="username"
+                    />
+                  </label>
+                  <label className="grid gap-1 text-sm">
+                    {t.password}
+                    <input
+                      className={inputClass()}
+                      value={loginPassword}
+                      onChange={(event) => setLoginPassword(event.target.value)}
+                      type="password"
+                      autoComplete="current-password"
+                    />
+                  </label>
+                  <Button type="submit">{t.login}</Button>
+                  {loginMessage ? (
+                    <p className="text-sm text-red-500">{loginMessage}</p>
+                  ) : null}
+                </form>
+              </CardContent>
+            ) : null}
+          </Card>
+        </main>
+      </div>
+    )
+  }
+
   if (!activeDay) {
     return (
       <div className="min-h-screen bg-background text-foreground">
@@ -1683,6 +1810,15 @@ export function IntakeDashboard() {
               <CardTitle>{t.intakeRegister}</CardTitle>
               <CardDescription>{status}</CardDescription>
             </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between gap-3">
+                <Badge variant="outline">{sessionUser.username}</Badge>
+                <Button variant="outline" onClick={logout}>
+                  <LogOut />
+                  {t.logout}
+                </Button>
+              </div>
+            </CardContent>
           </Card>
         </main>
       </div>
@@ -1761,6 +1897,11 @@ export function IntakeDashboard() {
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">{sessionUser.username}</Badge>
+            <Button variant="outline" size="sm" onClick={logout}>
+              <LogOut />
+              {t.logout}
+            </Button>
             <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
               <RefreshCw />
               {t.reloadData}
