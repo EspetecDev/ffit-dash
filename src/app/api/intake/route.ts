@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { getRequestAdmin } from "@/lib/auth"
+import { getRequestUser } from "@/lib/auth"
 import {
   createIntakeEntry,
   getIntakeDbPath,
@@ -15,9 +15,14 @@ function isAuthorized(request: Request) {
   return request.headers.get("authorization") === `Bearer ${token}`
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const user = getRequestUser(request)
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
   try {
-    const entries = listIntakeEntries()
+    const entries = listIntakeEntries(user.id)
 
     return NextResponse.json({
       entries,
@@ -53,8 +58,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  if (!getRequestAdmin(request)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  const user = getRequestUser(request)
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   try {
@@ -65,7 +71,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 })
     }
 
-    const result = updateIntakeEntry(id, body)
+    const result = updateIntakeEntry(id, body, user.id)
     if (!result.ok) {
       return NextResponse.json(
         { error: result.error },

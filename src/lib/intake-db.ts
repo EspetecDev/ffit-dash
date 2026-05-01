@@ -279,7 +279,14 @@ function insertIntakeEntry(input: Record<string, unknown>) {
   return Number(result.lastInsertRowid)
 }
 
-export function listIntakeEntries() {
+export function listIntakeEntries(userId?: number) {
+  if (userId !== undefined) {
+    return getDb()
+      .prepare("select * from intake_entries where user_id = ? order by date asc, id asc")
+      .all(userId)
+      .map(fromRow)
+  }
+
   return getDb()
     .prepare("select * from intake_entries order by date asc, id asc")
     .all()
@@ -297,13 +304,18 @@ export function createIntakeEntry(input: Record<string, unknown>) {
   return fromRow(row)
 }
 
-export function updateIntakeEntry(id: number, input: Record<string, unknown>) {
+export function updateIntakeEntry(
+  id: number,
+  input: Record<string, unknown>,
+  userId?: number
+) {
   const database = getDb()
   const entry = normalizeInput(input)
   if (!entry.date) throw new Error("date is required")
 
-  const result = database
-    .prepare(`
+  const updateSql =
+    userId === undefined
+      ? `
       update intake_entries
       set
         date = ?,
@@ -320,28 +332,57 @@ export function updateIntakeEntry(id: number, input: Record<string, unknown>) {
         notes = ?,
         updated_at = current_timestamp
       where id = ?
-    `)
-    .run(
-      entry.date,
-      entry.meal,
-      entry.food,
-      entry.quantity,
-      entry.unit,
-      entry.brand,
-      entry.calories,
-      entry.fat,
-      entry.carbs,
-      entry.protein,
-      entry.url,
-      entry.notes,
-      id
-    )
+    `
+      : `
+      update intake_entries
+      set
+        date = ?,
+        meal = ?,
+        food = ?,
+        quantity = ?,
+        unit = ?,
+        brand = ?,
+        calories = ?,
+        fat = ?,
+        carbs = ?,
+        protein = ?,
+        url = ?,
+        notes = ?,
+        updated_at = current_timestamp
+      where id = ? and user_id = ?
+    `
+  const values = [
+    entry.date,
+    entry.meal,
+    entry.food,
+    entry.quantity,
+    entry.unit,
+    entry.brand,
+    entry.calories,
+    entry.fat,
+    entry.carbs,
+    entry.protein,
+    entry.url,
+    entry.notes,
+    id,
+  ]
+
+  if (userId !== undefined) {
+    values.push(userId)
+  }
+
+  const result = database.prepare(updateSql).run(...values)
 
   if (result.changes === 0) {
     return { ok: false, status: 404, error: "Intake row not found" }
   }
 
-  const row = database.prepare("select * from intake_entries where id = ?").get(id)
+  const row =
+    userId === undefined
+      ? database.prepare("select * from intake_entries where id = ?").get(id)
+      : database
+          .prepare("select * from intake_entries where id = ? and user_id = ?")
+          .get(id, userId)
   if (!row) throw new Error("Failed to read updated intake entry")
 
   return { ok: true, entry: fromRow(row) }

@@ -9,7 +9,7 @@ Goal: let each dashboard user log in, see only their own intake data, and modify
    - Migrate existing rows to the first admin user.
    - Keep database initialization deterministic for local and Docker deployments.
 
-2. Scope intake APIs to sessions
+2. Scope intake APIs to sessions - Done
    - Require a session for dashboard `GET /api/intake`.
    - Restrict `PATCH /api/intake` to rows owned by the current user.
    - Keep MCP/import ingestion separate from human dashboard auth.
