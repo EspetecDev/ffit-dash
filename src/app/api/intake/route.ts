@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { getRequestUser } from "@/lib/auth"
+import { getRequestUser, getUserByApiToken } from "@/lib/auth"
 import {
   createIntakeEntry,
   getIntakeDbPath,
@@ -8,11 +8,11 @@ import {
   updateIntakeEntry,
 } from "@/lib/intake-db"
 
-function isAuthorized(request: Request) {
-  const token = process.env.FFIT_INGEST_TOKEN
-  if (!token) return false
+function getBearerToken(request: Request) {
+  const authorization = request.headers.get("authorization")
+  if (!authorization?.startsWith("Bearer ")) return null
 
-  return request.headers.get("authorization") === `Bearer ${token}`
+  return authorization.slice("Bearer ".length)
 }
 
 function requireIntakeUser(request: NextRequest) {
@@ -57,13 +57,14 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!isAuthorized(request)) {
+  const user = getUserByApiToken(getBearerToken(request))
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   try {
     const body = (await request.json()) as Record<string, unknown>
-    const entry = createIntakeEntry(body)
+    const entry = createIntakeEntry(body, user.id)
 
     return NextResponse.json({ entry }, { status: 201 })
   } catch (error) {

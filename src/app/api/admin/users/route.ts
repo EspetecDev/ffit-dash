@@ -31,13 +31,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid user payload" }, { status: 400 })
     }
 
-    const user = createUser({
+    const created = createUser({
       username: body.username,
       password: body.password,
       role: body.role === "admin" ? "admin" : ("user" as UserRole),
     })
 
-    return NextResponse.json({ user }, { status: 201 })
+    return NextResponse.json(created, { status: 201 })
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to create user" },

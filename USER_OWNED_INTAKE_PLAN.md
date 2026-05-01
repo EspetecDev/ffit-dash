@@ -29,10 +29,10 @@ Goal: let each dashboard user log in, see only their own intake data, and modify
 
 ## Manual Test Checklist
 
-1. Start the app with `FFIT_ADMIN_USERNAME`, `FFIT_ADMIN_PASSWORD`, `FFIT_INGEST_TOKEN`, and `FFIT_INGEST_USERNAME`.
+1. Start the app with `FFIT_ADMIN_USERNAME`, `FFIT_ADMIN_PASSWORD`, and `FFIT_INGEST_USERNAME` when existing rows need migration.
 2. Open `/` while logged out and confirm the intake dashboard asks for login.
 3. Log in as admin on `/` and confirm the dashboard sends the admin to `/admin` instead of showing intake data.
 4. Open `/admin`, create a normal `user` account, and confirm account creation is admin-only.
-5. Set `FFIT_INGEST_USERNAME` to that normal user and upload an intake row through `POST /api/intake` or MCP.
+5. Use the normal user's API token to upload an intake row through `POST /api/intake` or MCP.
 6. Log in as the normal user on `/`, confirm the uploaded row appears, and edit it.
 7. Log out and confirm `/api/intake` returns `401` without a session.

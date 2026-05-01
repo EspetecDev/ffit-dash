@@ -131,10 +131,10 @@ function ingestOwnerId(database: SqliteDatabase) {
   return Number(user.id)
 }
 
-function requireDefaultOwnerId(database: SqliteDatabase) {
+function requireMigrationOwnerId(database: SqliteDatabase) {
   const ownerId = ingestOwnerId(database)
   if (!ownerId) {
-    throw new Error("No intake owner is available. Configure FFIT_INGEST_USERNAME for an existing user account.")
+    throw new Error("No intake migration owner is available. Configure FFIT_INGEST_USERNAME for an existing user account before migrating existing intake rows.")
   }
 
   return ownerId
@@ -143,7 +143,7 @@ function requireDefaultOwnerId(database: SqliteDatabase) {
 function ensureOwnerColumn(database: SqliteDatabase, columns: Set<string>) {
   if (columns.has("user_id")) return
 
-  const ownerId = requireDefaultOwnerId(database)
+  const ownerId = requireMigrationOwnerId(database)
   database.exec("alter table intake_entries add column user_id integer")
   database
     .prepare("update intake_entries set user_id = ? where user_id is null")
@@ -152,7 +152,7 @@ function ensureOwnerColumn(database: SqliteDatabase, columns: Set<string>) {
 }
 
 function migrateSpanishSchema(database: SqliteDatabase) {
-  const ownerId = requireDefaultOwnerId(database)
+  const ownerId = requireMigrationOwnerId(database)
   database.exec(`
     alter table intake_entries rename to intake_entries_legacy;
   `)
@@ -240,12 +240,11 @@ function fromRow(row: Record<string, unknown>): IntakeEntry {
   }
 }
 
-function insertIntakeEntry(input: Record<string, unknown>) {
+function insertIntakeEntry(input: Record<string, unknown>, userId: number) {
   const database = getDb()
 
   const entry = normalizeInput(input)
   if (!entry.date) throw new Error("date is required")
-  const ownerId = requireDefaultOwnerId(database)
 
   const result = database
     .prepare(`
@@ -266,7 +265,7 @@ function insertIntakeEntry(input: Record<string, unknown>) {
       ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     .run(
-      ownerId,
+      userId,
       entry.date,
       entry.meal,
       entry.food,
@@ -298,11 +297,11 @@ export function listIntakeEntries(userId?: number) {
     .map(fromRow)
 }
 
-export function createIntakeEntry(input: Record<string, unknown>) {
+export function createIntakeEntry(input: Record<string, unknown>, userId: number) {
   const entry = normalizeInput(input)
   if (!entry.date) throw new Error("date is required")
 
-  const id = insertIntakeEntry(entry)
+  const id = insertIntakeEntry(entry, userId)
   const row = getDb().prepare("select * from intake_entries where id = ?").get(id)
   if (!row) throw new Error("Failed to read inserted intake entry")
 

@@ -16,7 +16,7 @@ function getApiBaseUrl() {
 function getIngestToken() {
   const token = process.env.FFIT_INGEST_TOKEN?.trim()
   if (!token) {
-    throw new Error("FFIT_INGEST_TOKEN is required to upload intake entries through the API")
+    throw new Error("FFIT_INGEST_TOKEN must be set to a user API token to upload intake entries")
   }
 
   return token

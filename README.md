@@ -10,7 +10,6 @@ The app stores intake data in a local SQLite database. For self-hosting, set:
 
 ```bash
 FFIT_DATA_DIR=/data/ffit
-FFIT_INGEST_TOKEN=change-me
 FFIT_INGEST_USERNAME=demo-user
 ```
 
@@ -28,14 +27,16 @@ data/ffit.db
 
 The dashboard requires login before reading intake data. `GET /api/intake` returns only the current user's entries. Normal `user` accounts can edit their own rows through `PATCH /api/intake`. Admin accounts are reserved for account management in `/admin`.
 
-New entries can be written through `POST /api/intake` with:
+New entries can be written through `POST /api/intake` with a user API token:
 
 ```http
-Authorization: Bearer $FFIT_INGEST_TOKEN
+Authorization: Bearer $USER_API_TOKEN
 Content-Type: application/json
 ```
 
-Token ingestion writes rows to `FFIT_INGEST_USERNAME`. The username must already exist and must have the `user` role. Admin accounts cannot own intake rows.
+User API tokens are generated for `user` accounts when an admin creates the account and are shown once with the generated or manually entered password. Token ingestion writes rows to the user that owns the API token. Admin accounts cannot own intake rows.
+
+`FFIT_INGEST_USERNAME` is only used when existing intake rows need to be migrated into the new owner model. The username must already exist and must have the `user` role.
 
 Expected JSON fields:
 
@@ -62,10 +63,9 @@ The included `Dockerfile` builds a production Next.js image with standalone outp
 
 1. Make sure Docker is running.
 
-2. Choose an ingest token. This token is required when creating new intake entries through `POST /api/intake`.
+2. Choose the migration owner for any existing intake rows, then create a normal user from `/admin` and use that user's API token for uploads.
 
 ```bash
-export FFIT_INGEST_TOKEN=change-me
 export FFIT_INGEST_USERNAME=demo-user
 export FFIT_ADMIN_USERNAME=admin
 export FFIT_ADMIN_PASSWORD=change-me-admin-password
@@ -121,7 +121,6 @@ docker build -t ffit-dash .
 
 docker run -p 3000:3000 \
   -e FFIT_DATA_DIR=/data/ffit \
-  -e FFIT_INGEST_TOKEN=change-me \
   -e FFIT_INGEST_USERNAME=demo-user \
   -e FFIT_ADMIN_USERNAME=admin \
   -e FFIT_ADMIN_PASSWORD=change-me-admin-password \
@@ -137,7 +136,7 @@ Run it locally with:
 
 ```bash
 FFIT_API_BASE_URL=http://localhost:3000 \
-FFIT_INGEST_TOKEN=change-me \
+FFIT_INGEST_TOKEN=ffit_user_api_token \
 npm run mcp:intake
 ```
 
@@ -154,7 +153,7 @@ Example MCP client configuration:
       "cwd": "/path/to/ffit-dash",
       "env": {
         "FFIT_API_BASE_URL": "http://localhost:3000",
-        "FFIT_INGEST_TOKEN": "change-me"
+        "FFIT_INGEST_TOKEN": "ffit_user_api_token"
       }
     }
   }
@@ -168,7 +167,7 @@ Available tools:
 
 Both tools accept `date`, `meal`, `food`, `quantity`, `unit`, `brand`, `calories`, `fat`, `carbs`, `protein`, `url`, and `notes`. `date` must use `YYYY-MM-DD`.
 
-MCP uploads use the same token ingestion owner rule as `POST /api/intake`: set `FFIT_INGEST_USERNAME` on the running dashboard service to choose which user account receives uploaded rows.
+MCP uploads use the same user API token as `POST /api/intake`. Set `FFIT_INGEST_TOKEN` in the MCP client to the user's API token; the dashboard service resolves the owner from that token.
 
 ## Admin Accounts
 

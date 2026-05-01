@@ -793,6 +793,23 @@ function inputClass() {
   return "h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
 }
 
+function TopBar({ user }: { user: SessionUser | null }) {
+  const avatarLabel = user?.username.slice(0, 1).toUpperCase() || "?"
+
+  return (
+    <header className="flex items-center justify-between border-b border-border bg-background px-4 py-3 sm:px-6 lg:px-8">
+      <div className="text-lg font-semibold tracking-normal">FFIT</div>
+      <div
+        className="flex size-9 items-center justify-center rounded-full border border-border bg-muted text-sm font-semibold text-muted-foreground"
+        aria-label={user ? user.username : "No user"}
+        title={user ? user.username : "No user"}
+      >
+        {avatarLabel}
+      </div>
+    </header>
+  )
+}
+
 function SidebarNav({
   activeView,
   onViewChange,
@@ -811,7 +828,7 @@ function SidebarNav({
     )
 
   return (
-    <aside className="border-b border-border bg-card/95 px-4 py-4 md:fixed md:inset-y-0 md:left-0 md:z-20 md:w-64 md:border-b-0 md:border-r">
+    <aside className="border-b border-border bg-card/95 px-4 py-4 md:fixed md:bottom-0 md:left-0 md:top-[65px] md:z-20 md:w-64 md:border-b-0 md:border-r">
       <div className="flex h-full flex-col gap-6">
         <div>
           <div className="text-lg font-semibold tracking-normal">Ffit Dash</div>
@@ -1573,10 +1590,12 @@ export function IntakeDashboard() {
       setSessionUser(payload.user)
       setCanEdit(payload.user?.role === "user")
       if (payload.user?.role === "user") {
+        setActiveView("nutrition-overview")
         await loadIntakeEntries()
       } else if (payload.user?.role === "admin") {
         setEntries([])
         setStatus(t.adminDashboardOnly)
+        window.location.replace("/admin")
       } else {
         setEntries([])
         setStatus(t.loginRequired)
@@ -1762,8 +1781,8 @@ export function IntakeDashboard() {
   if (!sessionLoaded || !sessionUser) {
     return (
       <div className="min-h-screen bg-background text-foreground">
-        <SidebarNav activeView={activeView} onViewChange={setActiveView} t={t} />
-        <main className="flex min-h-screen items-center justify-center p-6 md:pl-64">
+        <TopBar user={sessionUser} />
+        <main className="flex min-h-[calc(100vh-65px)] items-center justify-center p-6">
           <Card className="max-w-md">
             <CardHeader>
               <CardTitle>{t.login}</CardTitle>
@@ -1809,8 +1828,8 @@ export function IntakeDashboard() {
   if (sessionUser.role === "admin") {
     return (
       <div className="min-h-screen bg-background text-foreground">
-        <SidebarNav activeView={activeView} onViewChange={setActiveView} t={t} />
-        <main className="flex min-h-screen items-center justify-center p-6 md:pl-64">
+        <TopBar user={sessionUser} />
+        <main className="flex min-h-[calc(100vh-65px)] items-center justify-center p-6">
           <Card className="max-w-md">
             <CardHeader>
               <CardTitle>{t.intakeRegister}</CardTitle>
@@ -1842,8 +1861,9 @@ export function IntakeDashboard() {
   if (!activeDay) {
     return (
       <div className="min-h-screen bg-background text-foreground">
+        <TopBar user={sessionUser} />
         <SidebarNav activeView={activeView} onViewChange={setActiveView} t={t} />
-        <main className="flex min-h-screen items-center justify-center p-6 md:pl-64">
+        <main className="flex min-h-[calc(100vh-65px)] items-center justify-center p-6 md:pl-64">
           <Card className="max-w-md">
             <CardHeader>
               <CardTitle>{t.intakeRegister}</CardTitle>
@@ -1866,8 +1886,9 @@ export function IntakeDashboard() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <TopBar user={sessionUser} />
       <SidebarNav activeView={activeView} onViewChange={setActiveView} t={t} />
-      <main className="min-h-screen md:pl-64">
+      <main className="min-h-[calc(100vh-65px)] md:pl-64">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
           {activeView === "nutrition-log" ? (
             <IntakeLogView
