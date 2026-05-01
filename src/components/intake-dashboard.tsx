@@ -52,7 +52,7 @@ type DashboardView =
   | "nutrition-day"
   | "workouts"
 type EditStatus = Record<number, "idle" | "saving" | "error">
-type IntakeDraft = Omit<IntakeEntry, "id">
+type IntakeDraft = Omit<IntakeEntry, "id" | "userId">
 type Language = "ca" | "es" | "en"
 
 const languageLabels: Record<Language, string> = {

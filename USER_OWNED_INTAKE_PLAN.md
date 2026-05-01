@@ -4,7 +4,7 @@ Goal: let each dashboard user log in, see only their own intake data, and modify
 
 ## Commit Steps
 
-1. Add intake ownership storage
+1. Add intake ownership storage - Done
    - Add `user_id` to `intake_entries`.
    - Migrate existing rows to the first admin user.
    - Keep database initialization deterministic for local and Docker deployments.

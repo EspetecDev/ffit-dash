@@ -1,5 +1,6 @@
 export type IntakeEntry = {
   id: number
+  userId: number
   date: string
   meal: string
   food: string
