@@ -7,7 +7,9 @@ services:
       - "3000:3000"
     environment:
       FFIT_DATA_DIR: /data/ffit
-      FFIT_INGEST_TOKEN: ${FFIT_INGEST_TOKEN:-change-me}
+      FFIT_INGEST_USERNAME: ${FFIT_INGEST_USERNAME:-}
+      FFIT_ADMIN_USERNAME: ${FFIT_ADMIN_USERNAME:-admin}
+      FFIT_ADMIN_PASSWORD: ${FFIT_ADMIN_PASSWORD:-change-me-admin-password}
     volumes:
       - ffit-data:/data/ffit
     restart: unless-stopped

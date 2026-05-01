@@ -14,6 +14,11 @@ export type AuthUser = {
   createdAt: string
 }
 
+export type CreatedUser = {
+  user: AuthUser
+  apiToken: string | null
+}
+
 type SqliteDatabase = {
   exec: (sql: string) => void
   prepare: (sql: string) => {
@@ -54,6 +59,7 @@ function ensureAuthSchema(database: SqliteDatabase) {
       id integer primary key autoincrement,
       username text not null unique,
       password_hash text not null,
+      api_token_hash text,
       role text not null default 'user',
       created_at text not null default current_timestamp,
       updated_at text not null default current_timestamp
@@ -71,6 +77,18 @@ function ensureAuthSchema(database: SqliteDatabase) {
     create index if not exists sessions_user_id_idx on sessions(user_id);
     create index if not exists sessions_expires_at_idx on sessions(expires_at);
   `)
+
+  const userColumns = new Set(
+    database
+      .prepare("pragma table_info(users)")
+      .all()
+      .map((row) => String(row.name))
+  )
+  if (!userColumns.has("api_token_hash")) {
+    database.exec("alter table users add column api_token_hash text;")
+  }
+
+  database.exec("create unique index if not exists users_api_token_hash_idx on users(api_token_hash);")
 }
 
 function toUser(row: Record<string, unknown>): AuthUser {
@@ -98,6 +116,14 @@ function verifyPassword(password: string, passwordHash: string) {
 }
 
 function hashSessionToken(token: string) {
+  return createHash("sha256").update(token).digest("hex")
+}
+
+function createApiToken() {
+  return `ffit_${randomBytes(32).toString("base64url")}`
+}
+
+function hashApiToken(token: string) {
   return createHash("sha256").update(token).digest("hex")
 }
 
@@ -156,22 +182,44 @@ export function createUser({
   const validatedRole = validateRole(role)
 
   try {
+    const apiToken = validatedRole === "user" ? createApiToken() : null
     const result = database
-      .prepare("insert into users (username, password_hash, role) values (?, ?, ?)")
-      .run(normalizedUsername, hashPassword(validatedPassword), validatedRole)
+      .prepare("insert into users (username, password_hash, api_token_hash, role) values (?, ?, ?, ?)")
+      .run(
+        normalizedUsername,
+        hashPassword(validatedPassword),
+        apiToken ? hashApiToken(apiToken) : null,
+        validatedRole
+      )
 
     const row = database
       .prepare("select * from users where id = ?")
       .get(Number(result.lastInsertRowid))
     if (!row) throw new Error("Failed to read created user")
 
-    return toUser(row)
+    return {
+      user: toUser(row),
+      apiToken,
+    } satisfies CreatedUser
   } catch (error) {
     if (error instanceof Error && error.message.includes("UNIQUE")) {
       throw new Error("Username already exists")
     }
     throw error
   }
+}
+
+export function getUserByApiToken(token?: string | null) {
+  const value = token?.trim()
+  if (!value) return null
+
+  bootstrapAdminUser()
+
+  const row = getDb()
+    .prepare("select * from users where api_token_hash = ? and role = 'user' limit 1")
+    .get(hashApiToken(value))
+
+  return row ? toUser(row) : null
 }
 
 export function listUsers() {

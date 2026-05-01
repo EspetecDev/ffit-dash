@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { getRequestAdmin } from "@/lib/auth"
+import { getRequestUser, getUserByApiToken } from "@/lib/auth"
 import {
   createIntakeEntry,
   getIntakeDbPath,
@@ -8,16 +8,38 @@ import {
   updateIntakeEntry,
 } from "@/lib/intake-db"
 
-function isAuthorized(request: Request) {
-  const token = process.env.FFIT_INGEST_TOKEN
-  if (!token) return false
+function getBearerToken(request: Request) {
+  const authorization = request.headers.get("authorization")
+  if (!authorization?.startsWith("Bearer ")) return null
 
-  return request.headers.get("authorization") === `Bearer ${token}`
+  return authorization.slice("Bearer ".length)
 }
 
-export async function GET() {
+function requireIntakeUser(request: NextRequest) {
+  const user = getRequestUser(request)
+  if (!user) {
+    return {
+      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+      user: null,
+    }
+  }
+
+  if (user.role === "admin") {
+    return {
+      error: NextResponse.json({ error: "Admins manage accounts only" }, { status: 403 }),
+      user: null,
+    }
+  }
+
+  return { error: null, user }
+}
+
+export async function GET(request: NextRequest) {
+  const { error, user } = requireIntakeUser(request)
+  if (error) return error
+
   try {
-    const entries = listIntakeEntries()
+    const entries = listIntakeEntries(user.id)
 
     return NextResponse.json({
       entries,
@@ -35,13 +57,14 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  if (!isAuthorized(request)) {
+  const user = getUserByApiToken(getBearerToken(request))
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   try {
     const body = (await request.json()) as Record<string, unknown>
-    const entry = createIntakeEntry(body)
+    const entry = createIntakeEntry(body, user.id)
 
     return NextResponse.json({ entry }, { status: 201 })
   } catch (error) {
@@ -53,9 +76,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  if (!getRequestAdmin(request)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  }
+  const { error, user } = requireIntakeUser(request)
+  if (error) return error
 
   try {
     const body = (await request.json()) as Record<string, unknown>
@@ -65,7 +87,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 })
     }
 
-    const result = updateIntakeEntry(id, body)
+    const result = updateIntakeEntry(id, body, user.id)
     if (!result.ok) {
       return NextResponse.json(
         { error: result.error },

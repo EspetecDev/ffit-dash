@@ -45,6 +45,7 @@ export function AdminDashboard() {
   const [newPassword, setNewPassword] = useState("")
   const [newRole, setNewRole] = useState<UserRole>("user")
   const [createdPassword, setCreatedPassword] = useState("")
+  const [createdApiToken, setCreatedApiToken] = useState("")
 
   const loadUsers = useCallback(async () => {
     const response = await fetch("/api/admin/users", { cache: "no-store" })
@@ -110,12 +111,15 @@ export function AdminDashboard() {
     setCurrentUser(null)
     setUsers([])
     setCreatedPassword("")
+    setCreatedApiToken("")
+    window.location.replace("/")
   }
 
   async function createAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setMessage("")
     setCreatedPassword("")
+    setCreatedApiToken("")
 
     const response = await fetch("/api/admin/users", {
       method: "POST",
@@ -130,6 +134,7 @@ export function AdminDashboard() {
     const payload = (await response.json()) as {
       error?: string
       user?: AuthUser
+      apiToken?: string | null
     }
 
     if (!response.ok || !payload.user) {
@@ -138,6 +143,7 @@ export function AdminDashboard() {
     }
 
     setCreatedPassword(newPassword)
+    setCreatedApiToken(payload.apiToken ?? "")
     setNewUsername("")
     setNewPassword("")
     setNewRole("user")
@@ -281,6 +287,14 @@ export function AdminDashboard() {
                     <div className="mt-1 break-all font-mono text-xs">
                       {createdPassword}
                     </div>
+                    {createdApiToken ? (
+                      <>
+                        <div className="mt-3 font-medium">API token</div>
+                        <div className="mt-1 break-all font-mono text-xs">
+                          {createdApiToken}
+                        </div>
+                      </>
+                    ) : null}
                   </div>
                 ) : null}
               </CardContent>
