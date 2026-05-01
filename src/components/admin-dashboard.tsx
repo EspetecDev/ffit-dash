@@ -112,6 +112,7 @@ export function AdminDashboard() {
     setUsers([])
     setCreatedPassword("")
     setCreatedApiToken("")
+    window.location.replace("/")
   }
 
   async function createAccount(event: FormEvent<HTMLFormElement>) {

@@ -8,6 +8,8 @@
   - [x] if no user is logged: show only the login form
   - [x] if the user is the admin: go directly to /admin 
   - [x] if the user is not the admin go to Overview directly (force redirection)
+  - [x] logout always redirects to root path
+  - [x] accessing /admin without logging shows 403
 
 # FOR ANOTHER MR
 ## NEW

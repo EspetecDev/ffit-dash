@@ -1651,6 +1651,7 @@ export function IntakeDashboard() {
     setSelectedDate(null)
     setEditingEntries({})
     setStatus(t.loginRequired)
+    window.location.replace("/")
   }
 
   const days = useMemo(() => groupIntakeByDay(entries), [entries])
