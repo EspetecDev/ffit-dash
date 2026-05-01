@@ -11,9 +11,18 @@
   - [x] logout always redirects to root path
   - [x] accessing /admin without logging shows 403
 
+
+
 # FOR ANOTHER MR
 ## NEW
-- [ ] users should have a /config panel that allows them to change password, and issue an API_TOKEN to access the api (rest calls and mcp can mod user data with this)
-
+- [ ] new /config page for users
+  - [ ] has a sidebar with the following sections:
+  - [ ] change password
+  - [ ] manage api tokens
+    - [ ] on clicked shows list of current issued tokens
+      - [ ] every token show has a the name and first n chars of the api, then at the right, a copy to clipboard button
+    - [ ] new token -> asks for a name -> confirm -> adds it to the list
 ## TO BE FIXED POSTMR
 - [ ] reload data button should be removed
+- [ ] add dark/light theme toggle to header bar and always accessible
+- [ ] 
