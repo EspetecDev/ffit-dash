@@ -65,7 +65,6 @@ function ensureAuthSchema(database: SqliteDatabase) {
       updated_at text not null default current_timestamp
     );
     create index if not exists users_role_idx on users(role);
-    create unique index if not exists users_api_token_hash_idx on users(api_token_hash);
 
     create table if not exists sessions (
       id text primary key,
@@ -88,6 +87,7 @@ function ensureAuthSchema(database: SqliteDatabase) {
   if (!userColumns.has("api_token_hash")) {
     database.exec("alter table users add column api_token_hash text;")
   }
+
   database.exec("create unique index if not exists users_api_token_hash_idx on users(api_token_hash);")
 }
 
