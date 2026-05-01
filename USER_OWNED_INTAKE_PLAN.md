@@ -23,6 +23,16 @@ Goal: let each dashboard user log in, see only their own intake data, and modify
    - Let both `admin` and `user` accounts create and edit their own rows.
    - Keep account creation restricted to admins.
 
-5. Add validation and docs
+5. Add validation and docs - Done
    - Cover owner scoping with API smoke tests or focused automated tests.
    - Update README with the final auth and ownership model.
+
+## Manual Test Checklist
+
+1. Start the app with `FFIT_ADMIN_USERNAME`, `FFIT_ADMIN_PASSWORD`, `FFIT_INGEST_TOKEN`, and `FFIT_INGEST_USERNAME`.
+2. Open `/` while logged out and confirm the intake dashboard asks for login.
+3. Log in as admin, confirm admin-owned intake rows appear, and edit one row.
+4. Open `/admin`, create a normal `user` account, and confirm account creation is admin-only.
+5. Log in as the normal user on `/`, confirm admin rows are hidden, and edit a user-owned row.
+6. Upload an intake row through `POST /api/intake` or MCP and confirm it appears for `FFIT_INGEST_USERNAME`.
+7. Log out and confirm `/api/intake` returns `401` without a session.
