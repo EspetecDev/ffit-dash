@@ -14,15 +14,27 @@
 
 
 # FOR ANOTHER MR
-## NEW
+## PR 1: header cleanup
+- [x] reload data button should be removed
+- [x] add dark/light theme toggle to header bar and always accessible
+
+## PR 2: user config page shell
 - [ ] new /config page for users
-  - [ ] has a sidebar with the following sections:
+- [ ] only authenticated non-admin users can access /config
+- [ ] add config navigation from the logged-in header/avatar area
+- [ ] has a sidebar with the following sections:
   - [ ] change password
   - [ ] manage api tokens
-    - [ ] on clicked shows list of current issued tokens
-      - [ ] every token show has a the name and first n chars of the api, then at the right, a copy to clipboard button
-    - [ ] new token -> asks for a name -> confirm -> adds it to the list
-## TO BE FIXED POSTMR
-- [ ] reload data button should be removed
-- [ ] add dark/light theme toggle to header bar and always accessible
-- [ ] 
+
+## PR 3: change password
+- [ ] add change password form in /config
+- [ ] require current password before setting a new password
+- [ ] validate and persist the new password through an authenticated API route
+- [ ] show success and validation errors inline
+
+## PR 4: manage api tokens
+- [ ] add named API token storage for users
+- [ ] manage api tokens section shows list of current issued tokens
+- [ ] every token shows the name and first n chars of the token
+- [ ] every token has a copy to clipboard action
+- [ ] new token -> asks for a name -> confirm -> adds it to the list
