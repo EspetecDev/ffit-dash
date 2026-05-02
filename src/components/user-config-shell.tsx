@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { FormEvent, useState } from "react"
 import { KeyRound, LayoutDashboard, ShieldCheck } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -36,9 +36,58 @@ type ConfigSectionId = (typeof sections)[number]["id"]
 
 export function UserConfigShell({ user }: { user: AuthUser }) {
   const [activeSection, setActiveSection] = useState<ConfigSectionId>("password")
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [passwordMessage, setPasswordMessage] = useState("")
+  const [passwordStatus, setPasswordStatus] = useState<"idle" | "success" | "error">("idle")
+  const [isPasswordSaving, setIsPasswordSaving] = useState(false)
   const avatarLabel = user.username.slice(0, 1).toUpperCase()
   const section = sections.find((item) => item.id === activeSection) ?? sections[0]
   const SectionIcon = section.icon
+
+  async function changePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setPasswordMessage("")
+    setPasswordStatus("idle")
+    setIsPasswordSaving(true)
+
+    if (newPassword !== confirmPassword) {
+      setPasswordStatus("error")
+      setPasswordMessage("Passwords do not match")
+      setIsPasswordSaving(false)
+      return
+    }
+
+    try {
+      const response = await fetch("/api/auth/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+        }),
+      })
+      const payload = (await response.json()) as { error?: string }
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Could not update password")
+      }
+
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmPassword("")
+      setPasswordStatus("success")
+      setPasswordMessage("Password updated.")
+    } catch (error) {
+      setPasswordStatus("error")
+      setPasswordMessage(
+        error instanceof Error ? error.message : "Could not update password"
+      )
+    } finally {
+      setIsPasswordSaving(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -121,31 +170,58 @@ export function UserConfigShell({ user }: { user: AuthUser }) {
             </CardHeader>
             <CardContent>
               {activeSection === "password" ? (
-                <div className="grid gap-3 sm:max-w-md">
+                <form className="grid gap-3 sm:max-w-md" onSubmit={changePassword}>
                   <label className="grid gap-1 text-sm">
                     Current password
                     <input
-                      className="h-10 rounded-md border border-border bg-muted px-3 text-sm text-muted-foreground"
-                      disabled
+                      autoComplete="current-password"
+                      className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                      onChange={(event) => setCurrentPassword(event.target.value)}
+                      required
                       type="password"
-                      value=""
-                      readOnly
+                      value={currentPassword}
                     />
                   </label>
                   <label className="grid gap-1 text-sm">
                     New password
                     <input
-                      className="h-10 rounded-md border border-border bg-muted px-3 text-sm text-muted-foreground"
-                      disabled
+                      autoComplete="new-password"
+                      className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                      minLength={5}
+                      onChange={(event) => setNewPassword(event.target.value)}
+                      required
                       type="password"
-                      value=""
-                      readOnly
+                      value={newPassword}
                     />
                   </label>
-                  <Button disabled type="button">
-                    Change password
+                  <label className="grid gap-1 text-sm">
+                    Confirm new password
+                    <input
+                      autoComplete="new-password"
+                      className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                      minLength={5}
+                      onChange={(event) => setConfirmPassword(event.target.value)}
+                      required
+                      type="password"
+                      value={confirmPassword}
+                    />
+                  </label>
+                  <Button disabled={isPasswordSaving} type="submit">
+                    {isPasswordSaving ? "Saving..." : "Change password"}
                   </Button>
-                </div>
+                  {passwordMessage ? (
+                    <p
+                      className={cn(
+                        "text-sm",
+                        passwordStatus === "success"
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-red-500"
+                      )}
+                    >
+                      {passwordMessage}
+                    </p>
+                  ) : null}
+                </form>
               ) : (
                 <div className="grid gap-3">
                   <div className="rounded-md border border-border px-4 py-3 text-sm text-muted-foreground">

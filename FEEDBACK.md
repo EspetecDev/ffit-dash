@@ -27,10 +27,10 @@
   - [x] manage api tokens
 
 ## PR 3: change password
-- [ ] add change password form in /config
-- [ ] require current password before setting a new password
-- [ ] validate and persist the new password through an authenticated API route
-- [ ] show success and validation errors inline
+- [x] add change password form in /config
+- [x] require current password before setting a new password
+- [x] validate and persist the new password through an authenticated API route
+- [x] show success and validation errors inline
 
 ## PR 4: manage api tokens
 - [ ] add named API token storage for users
