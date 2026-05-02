@@ -9,7 +9,7 @@ export default function Forbidden() {
         </p>
         <h1 className="text-3xl font-semibold tracking-normal">Forbidden</h1>
         <p className="text-sm text-muted-foreground">
-          You need an authenticated admin account to access this page.
+          Your account does not have access to this page.
         </p>
         <Link
           className="mx-auto inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"

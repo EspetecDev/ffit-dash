@@ -17,14 +17,16 @@ import {
   PieChart,
   Salad,
   Save,
+  Settings,
   Soup,
   Utensils,
   Wheat,
   X,
 } from "lucide-react"
+import Link from "next/link"
 
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import {
   Card,
@@ -762,6 +764,16 @@ function TopBar({ user }: { user: SessionUser | null }) {
       <div className="text-lg font-semibold tracking-normal">FFIT</div>
       <div className="flex items-center gap-2">
         <ThemeToggle />
+        {user?.role === "user" ? (
+          <Link
+            aria-label="Account settings"
+            className={cn(buttonVariants({ variant: "outline", size: "icon" }))}
+            href="/config"
+            title="Account settings"
+          >
+            <Settings />
+          </Link>
+        ) : null}
         <div
           className="flex size-9 items-center justify-center rounded-full border border-border bg-muted text-sm font-semibold text-muted-foreground"
           aria-label={user ? user.username : "No user"}

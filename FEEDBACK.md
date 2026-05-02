@@ -19,12 +19,12 @@
 - [x] add dark/light theme toggle to header bar and always accessible
 
 ## PR 2: user config page shell
-- [ ] new /config page for users
-- [ ] only authenticated non-admin users can access /config
-- [ ] add config navigation from the logged-in header/avatar area
-- [ ] has a sidebar with the following sections:
-  - [ ] change password
-  - [ ] manage api tokens
+- [x] new /config page for users
+- [x] only authenticated non-admin users can access /config
+- [x] add config navigation from the logged-in header/avatar area
+- [x] has a sidebar with the following sections:
+  - [x] change password
+  - [x] manage api tokens
 
 ## PR 3: change password
 - [ ] add change password form in /config
