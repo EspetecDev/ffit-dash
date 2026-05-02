@@ -33,8 +33,9 @@
 - [x] show success and validation errors inline
 
 ## PR 4: manage api tokens
-- [ ] add named API token storage for users
-- [ ] manage api tokens section shows list of current issued tokens
-- [ ] every token shows the name and first n chars of the token
-- [ ] every token has a copy to clipboard action
-- [ ] new token -> asks for a name -> confirm -> adds it to the list
+- [x] add named API token storage for users
+- [x] manage api tokens section shows list of current issued tokens
+- [x] every token shows the name and first n chars of the token
+- [x] every token has a copy to clipboard action
+- [x] every token has a remove action
+- [x] new token -> asks for a name -> confirm -> adds it to the list
