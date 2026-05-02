@@ -38,3 +38,7 @@
 - [ ] every token shows the name and first n chars of the token
 - [ ] every token has a copy to clipboard action
 - [ ] new token -> asks for a name -> confirm -> adds it to the list
+
+## PR 5: fixes
+- [ ] add href to FFIT logo to index
+- [ ] make logged user avatar a dropdown with the config and logout buttons (and its redirects)
