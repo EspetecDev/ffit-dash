@@ -5,6 +5,7 @@ import { KeyRound, LogOut, RefreshCw, ShieldCheck, UserPlus } from "lucide-react
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { ThemeToggle } from "@/components/theme-toggle"
 import {
   Card,
   CardContent,
@@ -166,6 +167,7 @@ export function AdminDashboard() {
 
           {currentUser ? (
             <div className="flex flex-wrap items-center gap-2">
+              <ThemeToggle />
               <Badge variant={currentUser.role === "admin" ? "default" : "outline"}>
                 {currentUser.username}
               </Badge>

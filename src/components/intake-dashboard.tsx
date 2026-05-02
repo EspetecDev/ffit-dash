@@ -14,13 +14,10 @@ import {
   LayoutDashboard,
   List,
   LogOut,
-  Moon,
   PieChart,
-  RefreshCw,
   Salad,
   Save,
   Soup,
-  Sun,
   Utensils,
   Wheat,
   X,
@@ -28,6 +25,7 @@ import {
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { ThemeToggle } from "@/components/theme-toggle"
 import {
   Card,
   CardContent,
@@ -116,7 +114,6 @@ const copy = {
     allDetails: "Tots els detalls",
     dayDetails: "Detalls del dia",
     backToLog: "Tornar al registre",
-    reloadData: "Recarregar dades",
     lastDay: "Ultim dia",
     intakeRegister: "Registre d'ingesta",
     caloriesAndMacros: "Calories i Macros",
@@ -183,7 +180,6 @@ const copy = {
     allDetails: "Todos los detalles",
     dayDetails: "Detalles del dia",
     backToLog: "Volver al registro",
-    reloadData: "Recargar datos",
     lastDay: "Ultimo dia",
     intakeRegister: "Registro de ingesta",
     caloriesAndMacros: "Calorias y Macros",
@@ -250,7 +246,6 @@ const copy = {
     allDetails: "All details",
     dayDetails: "Day details",
     backToLog: "Back to log",
-    reloadData: "Reload data",
     lastDay: "Last day",
     intakeRegister: "Intake register",
     caloriesAndMacros: "Calories and Macros",
@@ -729,40 +724,6 @@ function mealSubtotalClass(moment: string) {
   return "border-slate-200 bg-slate-50 text-slate-950 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-100"
 }
 
-function ThemeToggle() {
-  const [isDark, setIsDark] = useState(false)
-
-  useEffect(() => {
-    const storedTheme = window.localStorage.getItem("theme")
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
-    const nextIsDark = storedTheme ? storedTheme === "dark" : prefersDark
-
-    document.documentElement.classList.toggle("dark", nextIsDark)
-    const frame = window.requestAnimationFrame(() => setIsDark(nextIsDark))
-
-    return () => window.cancelAnimationFrame(frame)
-  }, [])
-
-  function toggleTheme() {
-    const nextIsDark = !isDark
-    document.documentElement.classList.toggle("dark", nextIsDark)
-    window.localStorage.setItem("theme", nextIsDark ? "dark" : "light")
-    setIsDark(nextIsDark)
-  }
-
-  return (
-    <Button
-      aria-label={isDark ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}
-      variant="outline"
-      size="icon"
-      onClick={toggleTheme}
-      title={isDark ? "Tema claro" : "Tema oscuro"}
-    >
-      {isDark ? <Sun /> : <Moon />}
-    </Button>
-  )
-}
-
 function LanguageSelector({
   language,
   onLanguageChange,
@@ -799,12 +760,15 @@ function TopBar({ user }: { user: SessionUser | null }) {
   return (
     <header className="flex items-center justify-between border-b border-border bg-background px-4 py-3 sm:px-6 lg:px-8">
       <div className="text-lg font-semibold tracking-normal">FFIT</div>
-      <div
-        className="flex size-9 items-center justify-center rounded-full border border-border bg-muted text-sm font-semibold text-muted-foreground"
-        aria-label={user ? user.username : "No user"}
-        title={user ? user.username : "No user"}
-      >
-        {avatarLabel}
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
+        <div
+          className="flex size-9 items-center justify-center rounded-full border border-border bg-muted text-sm font-semibold text-muted-foreground"
+          aria-label={user ? user.username : "No user"}
+          title={user ? user.username : "No user"}
+        >
+          {avatarLabel}
+        </div>
       </div>
     </header>
   )
@@ -1329,7 +1293,6 @@ function IntakeLogView({
             onLanguageChange={onLanguageChange}
             t={t}
           />
-          <ThemeToggle />
         </div>
       </header>
 
@@ -1431,16 +1394,11 @@ function DayDetailsView({
             <ArrowLeft />
             {t.backToLog}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
-            <RefreshCw />
-            {t.reloadData}
-          </Button>
           <LanguageSelector
             language={language}
             onLanguageChange={onLanguageChange}
             t={t}
           />
-          <ThemeToggle />
         </div>
       </header>
 
@@ -1963,16 +1921,11 @@ export function IntakeDashboard() {
               <LogOut />
               {t.logout}
             </Button>
-            <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
-              <RefreshCw />
-              {t.reloadData}
-            </Button>
             <LanguageSelector
               language={language}
               onLanguageChange={changeLanguage}
               t={t}
             />
-            <ThemeToggle />
           </div>
         </header>
 
