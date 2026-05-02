@@ -137,8 +137,8 @@ function validateUsername(username: string) {
 }
 
 function validatePassword(password: string) {
-  if (password.length < 10) {
-    throw new Error("Password must be at least 10 characters")
+  if (password.length < 5) {
+    throw new Error("Password must be at least 5 characters")
   }
 
   return password
@@ -243,6 +243,37 @@ export function authenticateUser(username: string, password: string) {
   }
 
   return toUser(row)
+}
+
+export function changeUserPassword({
+  userId,
+  currentPassword,
+  newPassword,
+}: {
+  userId: number
+  currentPassword: string
+  newPassword: string
+}) {
+  bootstrapAdminUser()
+
+  const row = getDb()
+    .prepare("select * from users where id = ? and role = 'user'")
+    .get(userId)
+
+  if (!row) {
+    throw new Error("User not found")
+  }
+
+  if (!verifyPassword(currentPassword, String(row.password_hash ?? ""))) {
+    return false
+  }
+
+  const validatedPassword = validatePassword(newPassword)
+  getDb()
+    .prepare("update users set password_hash = ?, updated_at = current_timestamp where id = ?")
+    .run(hashPassword(validatedPassword), userId)
+
+  return true
 }
 
 export function createSession(userId: number) {
