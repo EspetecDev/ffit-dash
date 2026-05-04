@@ -19,6 +19,14 @@ export type CreatedUser = {
   apiToken: string | null
 }
 
+export type ApiToken = {
+  id: number
+  name: string
+  token: string
+  tokenPrefix: string
+  createdAt: string
+}
+
 type SqliteDatabase = {
   exec: (sql: string) => void
   prepare: (sql: string) => {
@@ -76,6 +84,18 @@ function ensureAuthSchema(database: SqliteDatabase) {
     );
     create index if not exists sessions_user_id_idx on sessions(user_id);
     create index if not exists sessions_expires_at_idx on sessions(expires_at);
+
+    create table if not exists api_tokens (
+      id integer primary key autoincrement,
+      user_id integer not null,
+      name text not null,
+      token text not null unique,
+      token_prefix text not null,
+      token_hash text not null unique,
+      created_at text not null default current_timestamp,
+      foreign key(user_id) references users(id)
+    );
+    create index if not exists api_tokens_user_id_idx on api_tokens(user_id);
   `)
 
   const userColumns = new Set(
@@ -96,6 +116,16 @@ function toUser(row: Record<string, unknown>): AuthUser {
     id: Number(row.id),
     username: String(row.username ?? ""),
     role: row.role === "admin" ? "admin" : "user",
+    createdAt: String(row.created_at ?? ""),
+  }
+}
+
+function toApiToken(row: Record<string, unknown>): ApiToken {
+  return {
+    id: Number(row.id),
+    name: String(row.name ?? ""),
+    token: String(row.token ?? ""),
+    tokenPrefix: String(row.token_prefix ?? ""),
     createdAt: String(row.created_at ?? ""),
   }
 }
@@ -148,6 +178,15 @@ function validateRole(role: unknown): UserRole {
   return role === "admin" ? "admin" : "user"
 }
 
+function validateTokenName(name: string) {
+  const value = name.trim()
+  if (value.length < 1 || value.length > 40) {
+    throw new Error("Token name must be 1-40 characters")
+  }
+
+  return value
+}
+
 export function bootstrapAdminUser() {
   const database = getDb()
   const existingAdmin = database
@@ -196,6 +235,20 @@ export function createUser({
       .prepare("select * from users where id = ?")
       .get(Number(result.lastInsertRowid))
     if (!row) throw new Error("Failed to read created user")
+    if (apiToken) {
+      database
+        .prepare(`
+          insert into api_tokens (user_id, name, token, token_prefix, token_hash)
+          values (?, ?, ?, ?, ?)
+        `)
+        .run(
+          Number(result.lastInsertRowid),
+          "Default",
+          apiToken,
+          apiToken.slice(0, 12),
+          hashApiToken(apiToken)
+        )
+    }
 
     return {
       user: toUser(row),
@@ -215,11 +268,75 @@ export function getUserByApiToken(token?: string | null) {
 
   bootstrapAdminUser()
 
+  const tokenHash = hashApiToken(value)
+  const apiTokenRow = getDb()
+    .prepare(`
+      select users.*
+      from api_tokens
+      join users on users.id = api_tokens.user_id
+      where api_tokens.token_hash = ?
+        and users.role = 'user'
+      limit 1
+    `)
+    .get(tokenHash)
+
+  if (apiTokenRow) return toUser(apiTokenRow)
+
   const row = getDb()
     .prepare("select * from users where api_token_hash = ? and role = 'user' limit 1")
-    .get(hashApiToken(value))
+    .get(tokenHash)
 
   return row ? toUser(row) : null
+}
+
+export function listUserApiTokens(userId: number) {
+  return getDb()
+    .prepare("select * from api_tokens where user_id = ? order by created_at asc, id asc")
+    .all(userId)
+    .map(toApiToken)
+}
+
+export function createUserApiToken({
+  userId,
+  name,
+}: {
+  userId: number
+  name: string
+}) {
+  const row = getDb()
+    .prepare("select id from users where id = ? and role = 'user'")
+    .get(userId)
+  if (!row) throw new Error("User not found")
+
+  const token = createApiToken()
+  const tokenName = validateTokenName(name)
+  const result = getDb()
+    .prepare(`
+      insert into api_tokens (user_id, name, token, token_prefix, token_hash)
+      values (?, ?, ?, ?, ?)
+    `)
+    .run(userId, tokenName, token, token.slice(0, 12), hashApiToken(token))
+
+  const tokenRow = getDb()
+    .prepare("select * from api_tokens where id = ?")
+    .get(Number(result.lastInsertRowid))
+  if (!tokenRow) throw new Error("Failed to read created token")
+
+  return toApiToken(tokenRow)
+}
+
+export function deleteUserApiToken({
+  userId,
+  tokenId,
+}: {
+  userId: number
+  tokenId: number
+}) {
+  const result = getDb()
+    .prepare("delete from api_tokens where id = ? and user_id = ?")
+    .run(tokenId, userId)
+
+  return result.changes > 0
 }
 
 export function listUsers() {

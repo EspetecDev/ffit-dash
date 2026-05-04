@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { FormEvent, useState } from "react"
-import { KeyRound, LayoutDashboard, ShieldCheck } from "lucide-react"
+import { Copy, KeyRound, LayoutDashboard, Plus, ShieldCheck, Trash2 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -33,6 +33,13 @@ const sections = [
 ]
 
 type ConfigSectionId = (typeof sections)[number]["id"]
+type ApiToken = {
+  id: number
+  name: string
+  token: string
+  tokenPrefix: string
+  createdAt: string
+}
 
 export function UserConfigShell({ user }: { user: AuthUser }) {
   const [activeSection, setActiveSection] = useState<ConfigSectionId>("password")
@@ -42,9 +49,50 @@ export function UserConfigShell({ user }: { user: AuthUser }) {
   const [passwordMessage, setPasswordMessage] = useState("")
   const [passwordStatus, setPasswordStatus] = useState<"idle" | "success" | "error">("idle")
   const [isPasswordSaving, setIsPasswordSaving] = useState(false)
+  const [apiTokens, setApiTokens] = useState<ApiToken[]>([])
+  const [newTokenName, setNewTokenName] = useState("")
+  const [tokenMessage, setTokenMessage] = useState("")
+  const [tokenStatus, setTokenStatus] = useState<"idle" | "success" | "error">("idle")
+  const [isTokenLoading, setIsTokenLoading] = useState(false)
+  const [isTokenCreating, setIsTokenCreating] = useState(false)
+  const [deletingTokenId, setDeletingTokenId] = useState<number | null>(null)
   const avatarLabel = user.username.slice(0, 1).toUpperCase()
   const section = sections.find((item) => item.id === activeSection) ?? sections[0]
   const SectionIcon = section.icon
+
+  async function loadApiTokens() {
+    setIsTokenLoading(true)
+    setTokenMessage("")
+    setTokenStatus("idle")
+
+    try {
+      const response = await fetch("/api/auth/tokens", { cache: "no-store" })
+      const payload = (await response.json()) as {
+        error?: string
+        tokens?: ApiToken[]
+      }
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Could not load API tokens")
+      }
+
+      setApiTokens(payload.tokens ?? [])
+    } catch (error) {
+      setTokenStatus("error")
+      setTokenMessage(
+        error instanceof Error ? error.message : "Could not load API tokens"
+      )
+    } finally {
+      setIsTokenLoading(false)
+    }
+  }
+
+  function changeSection(sectionId: ConfigSectionId) {
+    setActiveSection(sectionId)
+    if (sectionId === "api-tokens") {
+      loadApiTokens()
+    }
+  }
 
   async function changePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -89,6 +137,91 @@ export function UserConfigShell({ user }: { user: AuthUser }) {
     }
   }
 
+  async function createToken(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setTokenMessage("")
+    setTokenStatus("idle")
+
+    if (!window.confirm(`Create API token "${newTokenName.trim()}"?`)) {
+      return
+    }
+
+    setIsTokenCreating(true)
+
+    try {
+      const response = await fetch("/api/auth/tokens", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newTokenName }),
+      })
+      const payload = (await response.json()) as {
+        error?: string
+        token?: ApiToken
+      }
+
+      if (!response.ok || !payload.token) {
+        throw new Error(payload.error || "Could not create token")
+      }
+
+      setApiTokens((current) => [...current, payload.token as ApiToken])
+      setNewTokenName("")
+      setTokenStatus("success")
+      setTokenMessage("API token created.")
+    } catch (error) {
+      setTokenStatus("error")
+      setTokenMessage(
+        error instanceof Error ? error.message : "Could not create token"
+      )
+    } finally {
+      setIsTokenCreating(false)
+    }
+  }
+
+  async function copyToken(token: ApiToken) {
+    try {
+      await window.navigator.clipboard.writeText(token.token)
+      setTokenStatus("success")
+      setTokenMessage(`Copied ${token.name}.`)
+    } catch {
+      setTokenStatus("error")
+      setTokenMessage("Could not copy token")
+    }
+  }
+
+  async function deleteToken(token: ApiToken) {
+    if (!window.confirm(`Remove API token "${token.name}"?`)) {
+      return
+    }
+
+    setDeletingTokenId(token.id)
+    setTokenMessage("")
+    setTokenStatus("idle")
+
+    try {
+      const response = await fetch("/api/auth/tokens", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: token.id }),
+      })
+      const payload = (await response.json()) as { error?: string }
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Could not remove token")
+      }
+
+      setApiTokens((current) => current.filter((item) => item.id !== token.id))
+      setTokenStatus("success")
+      setTokenMessage(`Removed ${token.name}.`)
+    } catch (error) {
+      setTokenStatus("error")
+      setTokenMessage(
+        error instanceof Error ? error.message : "Could not remove token"
+      )
+    } finally {
+      setDeletingTokenId(null)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="flex items-center justify-between border-b border-border bg-background px-4 py-3 sm:px-6 lg:px-8">
@@ -126,7 +259,7 @@ export function UserConfigShell({ user }: { user: AuthUser }) {
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
                   key={section.id}
-                  onClick={() => setActiveSection(section.id)}
+                  onClick={() => changeSection(section.id)}
                   type="button"
                 >
                   <Icon className="size-4" />
@@ -223,13 +356,81 @@ export function UserConfigShell({ user }: { user: AuthUser }) {
                   ) : null}
                 </form>
               ) : (
-                <div className="grid gap-3">
-                  <div className="rounded-md border border-border px-4 py-3 text-sm text-muted-foreground">
-                    No API tokens issued yet.
+                <div className="grid gap-4">
+                  <form className="flex flex-col gap-2 sm:flex-row" onSubmit={createToken}>
+                    <label className="grid flex-1 gap-1 text-sm">
+                      Token name
+                      <input
+                        className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                        maxLength={40}
+                        onChange={(event) => setNewTokenName(event.target.value)}
+                        required
+                        value={newTokenName}
+                      />
+                    </label>
+                    <Button
+                      className="sm:self-end"
+                      disabled={isTokenCreating}
+                      type="submit"
+                    >
+                      <Plus />
+                      {isTokenCreating ? "Creating..." : "New token"}
+                    </Button>
+                  </form>
+
+                  <div className="grid gap-2">
+                    {apiTokens.length > 0 ? (
+                      apiTokens.map((token) => (
+                        <div
+                          className="flex flex-col gap-3 rounded-md border border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                          key={token.id}
+                        >
+                          <div>
+                            <div className="font-medium">{token.name}</div>
+                            <div className="font-mono text-xs text-muted-foreground">
+                              {token.tokenPrefix}...
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => copyToken(token)}
+                            >
+                              <Copy />
+                              Copy
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={deletingTokenId === token.id}
+                              onClick={() => deleteToken(token)}
+                            >
+                              <Trash2 />
+                              {deletingTokenId === token.id ? "Removing..." : "Remove"}
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-md border border-border px-4 py-3 text-sm text-muted-foreground">
+                        {isTokenLoading ? "Loading API tokens..." : "No API tokens issued yet."}
+                      </div>
+                    )}
                   </div>
-                  <Button disabled className="w-fit" type="button">
-                    New token
-                  </Button>
+
+                  {tokenMessage ? (
+                    <p
+                      className={cn(
+                        "text-sm",
+                        tokenStatus === "success"
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-red-500"
+                      )}
+                    >
+                      {tokenMessage}
+                    </p>
+                  ) : null}
                 </div>
               )}
             </CardContent>

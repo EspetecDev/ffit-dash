@@ -140,15 +140,29 @@ function requireMigrationOwnerId(database: SqliteDatabase) {
   return ownerId
 }
 
+function intakeEntryCount(database: SqliteDatabase) {
+  const row = database.prepare("select count(*) as count from intake_entries").get()
+  return Number(row?.count ?? 0)
+}
+
 function ensureOwnerColumn(database: SqliteDatabase, columns: Set<string>) {
   if (columns.has("user_id")) return
 
-  const ownerId = requireMigrationOwnerId(database)
   database.exec("alter table intake_entries add column user_id integer")
-  database
-    .prepare("update intake_entries set user_id = ? where user_id is null")
-    .run(ownerId)
+  if (intakeEntryCount(database) > 0) {
+    const ownerId = requireMigrationOwnerId(database)
+    database
+      .prepare("update intake_entries set user_id = ? where user_id is null")
+      .run(ownerId)
+  }
   database.exec("create index if not exists intake_entries_user_id_idx on intake_entries(user_id);")
+}
+
+function ensureUserOwnedSchema(database: SqliteDatabase) {
+  const columns = tableColumns(database)
+  if (!columns.has("user_id")) {
+    ensureOwnerColumn(database, columns)
+  }
 }
 
 function migrateSpanishSchema(database: SqliteDatabase) {
@@ -242,6 +256,7 @@ function fromRow(row: Record<string, unknown>): IntakeEntry {
 
 function insertIntakeEntry(input: Record<string, unknown>, userId: number) {
   const database = getDb()
+  ensureUserOwnedSchema(database)
 
   const entry = normalizeInput(input)
   if (!entry.date) throw new Error("date is required")
@@ -284,14 +299,17 @@ function insertIntakeEntry(input: Record<string, unknown>, userId: number) {
 }
 
 export function listIntakeEntries(userId?: number) {
+  const database = getDb()
+  ensureUserOwnedSchema(database)
+
   if (userId !== undefined) {
-    return getDb()
+    return database
       .prepare("select * from intake_entries where user_id = ? order by date asc, id asc")
       .all(userId)
       .map(fromRow)
   }
 
-  return getDb()
+  return database
     .prepare("select * from intake_entries order by date asc, id asc")
     .all()
     .map(fromRow)
@@ -314,6 +332,7 @@ export function updateIntakeEntry(
   userId?: number
 ) {
   const database = getDb()
+  ensureUserOwnedSchema(database)
   const entry = normalizeInput(input)
   if (!entry.date) throw new Error("date is required")
 
