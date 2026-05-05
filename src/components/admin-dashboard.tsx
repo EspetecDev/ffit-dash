@@ -50,6 +50,7 @@ export function AdminDashboard() {
   const [createdPassword, setCreatedPassword] = useState("")
   const [createdApiToken, setCreatedApiToken] = useState("")
   const [deletingUserId, setDeletingUserId] = useState<number | null>(null)
+  const [loggingIn, setLoggingIn] = useState(false)
   const [messageStatus, setMessageStatus] = useState<"idle" | "success" | "error">("idle")
 
   const loadUsers = useCallback(async () => {
@@ -95,24 +96,32 @@ export function AdminDashboard() {
     event.preventDefault()
     setMessage("")
     setMessageStatus("idle")
+    setLoggingIn(true)
 
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username: loginUsername,
-        password: loginPassword,
-      }),
-    })
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: loginUsername,
+          password: loginPassword,
+        }),
+      })
 
-    if (!response.ok) {
+      if (!response.ok) {
+        setMessageStatus("error")
+        setMessage("Invalid credentials")
+        return
+      }
+
+      setLoginPassword("")
+      await loadSession()
+    } catch (error) {
       setMessageStatus("error")
-      setMessage("Invalid credentials")
-      return
+      setMessage(error instanceof Error ? error.message : "Could not log in")
+    } finally {
+      setLoggingIn(false)
     }
-
-    setLoginPassword("")
-    await loadSession()
   }
 
   async function createAccount(event: FormEvent<HTMLFormElement>) {
@@ -264,7 +273,9 @@ export function AdminDashboard() {
                     autoComplete="current-password"
                   />
                 </label>
-                <Button type="submit">Login</Button>
+                <Button disabled={loggingIn} type="submit">
+                  {loggingIn ? "Logging in..." : "Login"}
+                </Button>
               </form>
             </CardContent>
           </Card>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { deleteSession, sessionCookieName } from "@/lib/auth"
+import { deleteSession, isSecureRequest, sessionCookieName } from "@/lib/auth"
 
 export async function POST(request: NextRequest) {
   const token = request.cookies.get(sessionCookieName)?.value
@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
   response.cookies.set(sessionCookieName, "", {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: isSecureRequest(request),
     path: "/",
     maxAge: 0,
   })
