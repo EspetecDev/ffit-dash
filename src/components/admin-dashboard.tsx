@@ -1,8 +1,10 @@
 "use client"
 
+import Link from "next/link"
 import { FormEvent, useCallback, useEffect, useState } from "react"
-import { KeyRound, LogOut, RefreshCw, ShieldCheck, UserPlus } from "lucide-react"
+import { KeyRound, RefreshCw, ShieldCheck, Trash2, UserPlus } from "lucide-react"
 
+import { AccountMenu } from "@/components/account-menu"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -47,6 +49,8 @@ export function AdminDashboard() {
   const [newRole, setNewRole] = useState<UserRole>("user")
   const [createdPassword, setCreatedPassword] = useState("")
   const [createdApiToken, setCreatedApiToken] = useState("")
+  const [deletingUserId, setDeletingUserId] = useState<number | null>(null)
+  const [messageStatus, setMessageStatus] = useState<"idle" | "success" | "error">("idle")
 
   const loadUsers = useCallback(async () => {
     const response = await fetch("/api/admin/users", { cache: "no-store" })
@@ -58,6 +62,7 @@ export function AdminDashboard() {
   const loadSession = useCallback(async () => {
     setLoading(true)
     setMessage("")
+    setMessageStatus("idle")
 
     try {
       const response = await fetch("/api/auth/session", { cache: "no-store" })
@@ -71,6 +76,7 @@ export function AdminDashboard() {
         await loadUsers()
       }
     } catch {
+      setMessageStatus("error")
       setMessage("Could not load session")
     } finally {
       setLoading(false)
@@ -88,6 +94,7 @@ export function AdminDashboard() {
   async function login(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setMessage("")
+    setMessageStatus("idle")
 
     const response = await fetch("/api/auth/login", {
       method: "POST",
@@ -99,6 +106,7 @@ export function AdminDashboard() {
     })
 
     if (!response.ok) {
+      setMessageStatus("error")
       setMessage("Invalid credentials")
       return
     }
@@ -107,18 +115,10 @@ export function AdminDashboard() {
     await loadSession()
   }
 
-  async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" })
-    setCurrentUser(null)
-    setUsers([])
-    setCreatedPassword("")
-    setCreatedApiToken("")
-    window.location.replace("/")
-  }
-
   async function createAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setMessage("")
+    setMessageStatus("idle")
     setCreatedPassword("")
     setCreatedApiToken("")
 
@@ -139,6 +139,7 @@ export function AdminDashboard() {
     }
 
     if (!response.ok || !payload.user) {
+      setMessageStatus("error")
       setMessage(payload.error || "Could not create user")
       return
     }
@@ -151,11 +152,71 @@ export function AdminDashboard() {
     await loadUsers()
   }
 
+  async function deleteAccount(user: AuthUser) {
+    setMessage("")
+    setMessageStatus("idle")
+
+    if (user.id === currentUser?.id) {
+      setMessageStatus("error")
+      setMessage("You cannot delete your own admin account")
+      return
+    }
+
+    const confirmed = window.confirm(
+      `Delete ${user.username} and all of this account's intake entries, API tokens, and sessions? This cannot be undone.`
+    )
+
+    if (!confirmed) return
+
+    setDeletingUserId(user.id)
+
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id }),
+      })
+      const payload = (await response.json()) as {
+        error?: string
+        deletedIntakeEntries?: number
+      }
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Could not delete user")
+      }
+
+      setUsers((current) => current.filter((item) => item.id !== user.id))
+      setMessageStatus("success")
+      setMessage(
+        `Deleted ${user.username} and ${payload.deletedIntakeEntries ?? 0} intake entries.`
+      )
+    } catch (error) {
+      setMessageStatus("error")
+      setMessage(error instanceof Error ? error.message : "Could not delete user")
+    } finally {
+      setDeletingUserId(null)
+    }
+  }
+
   return (
     <main className="min-h-screen bg-background px-4 py-6 text-foreground sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-5xl flex-col gap-5">
-        <header className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+        <header className="border-b border-border pb-5">
+          <div className="flex items-center justify-between gap-3">
+            <Link
+              className="text-lg font-semibold tracking-normal transition-colors hover:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              href="/"
+            >
+              FFIT
+            </Link>
+
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <AccountMenu user={currentUser} />
+            </div>
+          </div>
+
+          <div className="mt-5">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <ShieldCheck className="size-4" />
               <span>Admin</span>
@@ -164,19 +225,6 @@ export function AdminDashboard() {
               Account management
             </h1>
           </div>
-
-          {currentUser ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <ThemeToggle />
-              <Badge variant={currentUser.role === "admin" ? "default" : "outline"}>
-                {currentUser.username}
-              </Badge>
-              <Button variant="outline" onClick={logout}>
-                <LogOut />
-                Logout
-              </Button>
-            </div>
-          ) : null}
         </header>
 
         {loading ? (
@@ -315,12 +363,13 @@ export function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[520px] text-left text-sm">
+                  <table className="w-full min-w-[640px] text-left text-sm">
                     <thead className="border-b text-xs uppercase text-muted-foreground">
                       <tr>
                         <th className="py-3 pr-4 font-medium">Username</th>
                         <th className="py-3 pr-4 font-medium">Role</th>
-                        <th className="py-3 font-medium">Created</th>
+                        <th className="py-3 pr-4 font-medium">Created</th>
+                        <th className="py-3 font-medium">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -335,6 +384,19 @@ export function AdminDashboard() {
                           <td className="py-3 text-muted-foreground">
                             {user.createdAt}
                           </td>
+                          <td className="py-3">
+                            <Button
+                              aria-label={`Delete ${user.username}`}
+                              disabled={deletingUserId === user.id || user.id === currentUser.id}
+                              onClick={() => deleteAccount(user)}
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              <Trash2 />
+                              {deletingUserId === user.id ? "Deleting..." : "Delete"}
+                            </Button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -345,7 +407,17 @@ export function AdminDashboard() {
           </div>
         ) : null}
 
-        {message ? <p className="text-sm text-red-500">{message}</p> : null}
+        {message ? (
+          <p
+            className={
+              messageStatus === "success"
+                ? "text-sm text-success"
+                : "text-sm text-red-500"
+            }
+          >
+            {message}
+          </p>
+        ) : null}
       </div>
     </main>
   )

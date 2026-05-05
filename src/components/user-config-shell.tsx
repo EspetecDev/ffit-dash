@@ -4,7 +4,7 @@ import Link from "next/link"
 import { FormEvent, useState } from "react"
 import { Copy, KeyRound, LayoutDashboard, Plus, ShieldCheck, Trash2 } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
+import { AccountMenu } from "@/components/account-menu"
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
   Card,
@@ -56,7 +56,6 @@ export function UserConfigShell({ user }: { user: AuthUser }) {
   const [isTokenLoading, setIsTokenLoading] = useState(false)
   const [isTokenCreating, setIsTokenCreating] = useState(false)
   const [deletingTokenId, setDeletingTokenId] = useState<number | null>(null)
-  const avatarLabel = user.username.slice(0, 1).toUpperCase()
   const section = sections.find((item) => item.id === activeSection) ?? sections[0]
   const SectionIcon = section.icon
 
@@ -225,17 +224,15 @@ export function UserConfigShell({ user }: { user: AuthUser }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="flex items-center justify-between border-b border-border bg-background px-4 py-3 sm:px-6 lg:px-8">
-        <div className="text-lg font-semibold tracking-normal">FFIT</div>
+        <Link
+          className="text-lg font-semibold tracking-normal transition-colors hover:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          href="/"
+        >
+          FFIT
+        </Link>
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <Badge variant="outline">{user.username}</Badge>
-          <div
-            className="flex size-9 items-center justify-center rounded-full border border-border bg-muted text-sm font-semibold text-muted-foreground"
-            aria-label={user.username}
-            title={user.username}
-          >
-            {avatarLabel}
-          </div>
+          <AccountMenu user={user} />
         </div>
       </header>
 

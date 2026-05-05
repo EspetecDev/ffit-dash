@@ -348,6 +348,50 @@ export function listUsers() {
     .map(toUser)
 }
 
+export function deleteUserAccount(userId: number) {
+  bootstrapAdminUser()
+
+  const database = getDb()
+  const row = database.prepare("select * from users where id = ?").get(userId)
+
+  if (!row) {
+    return null
+  }
+
+  database.exec("begin")
+
+  try {
+    const hasIntakeTable = Boolean(
+      database
+        .prepare("select name from sqlite_master where type = 'table' and name = 'intake_entries'")
+        .get()
+    )
+    const intakeResult = hasIntakeTable
+      ? database.prepare("delete from intake_entries where user_id = ?").run(userId)
+      : { changes: 0 }
+    const sessionResult = database
+      .prepare("delete from sessions where user_id = ?")
+      .run(userId)
+    const tokenResult = database
+      .prepare("delete from api_tokens where user_id = ?")
+      .run(userId)
+    const userResult = database.prepare("delete from users where id = ?").run(userId)
+
+    database.exec("commit")
+
+    return {
+      user: toUser(row),
+      deletedIntakeEntries: intakeResult.changes,
+      deletedSessions: sessionResult.changes,
+      deletedApiTokens: tokenResult.changes,
+      deletedUsers: userResult.changes,
+    }
+  } catch (error) {
+    database.exec("rollback")
+    throw error
+  }
+}
+
 export function authenticateUser(username: string, password: string) {
   bootstrapAdminUser()
 
