@@ -27,6 +27,20 @@ export type ApiToken = {
   createdAt: string
 }
 
+export function isSecureRequest(request: NextRequest) {
+  const forwardedProto = request.headers
+    .get("x-forwarded-proto")
+    ?.split(",")[0]
+    ?.trim()
+    .toLowerCase()
+
+  if (forwardedProto) {
+    return forwardedProto === "https"
+  }
+
+  return request.nextUrl.protocol === "https:"
+}
+
 type SqliteDatabase = {
   exec: (sql: string) => void
   prepare: (sql: string) => {

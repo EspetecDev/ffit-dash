@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { authenticateUser, createSession, sessionCookieName } from "@/lib/auth"
+import {
+  authenticateUser,
+  createSession,
+  isSecureRequest,
+  sessionCookieName,
+} from "@/lib/auth"
 
 export async function POST(request: NextRequest) {
   const body = (await request.json()) as {
@@ -22,7 +27,7 @@ export async function POST(request: NextRequest) {
   response.cookies.set(sessionCookieName, session.token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: isSecureRequest(request),
     path: "/",
     expires: new Date(session.expiresAt),
   })
