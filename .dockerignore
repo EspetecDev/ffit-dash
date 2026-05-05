@@ -8,4 +8,5 @@ docker-compose.yml
 .env
 .env*.local
 data
+ffit-data
 coverage

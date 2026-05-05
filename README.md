@@ -59,7 +59,7 @@ Expected JSON fields:
 
 ## Docker
 
-The included `Dockerfile` builds a production Next.js image with standalone output. The included `docker-compose.yml` runs that image and stores SQLite data in a persistent Docker volume.
+The included `Dockerfile` builds a production Next.js image with standalone output. The included `docker-compose.yml` runs that image and stores SQLite data in `./ffit-data` on the host.
 
 1. Make sure Docker is running.
 
@@ -83,35 +83,36 @@ docker compose up --build
 http://localhost:3000
 ```
 
-5. Check that the API can read the SQLite database.
+5. Check that the app is reachable.
 
 ```bash
-curl http://localhost:3000/api/intake
+curl http://localhost:3000/api/auth/session
 ```
 
 The Compose setup maps:
 
 ```txt
 3000:3000
-ffit-data:/data/ffit
+./ffit-data:/data/ffit
 ```
 
 The app will create and update:
 
 ```txt
-/data/ffit/ffit.db
+./ffit-data/ffit.db
 ```
 
-To stop the app while keeping the SQLite data volume:
+To stop the app while keeping the SQLite data directory:
 
 ```bash
 docker compose down
 ```
 
-To remove the app and its persisted SQLite volume:
+To remove the app and its persisted SQLite data:
 
 ```bash
-docker compose down --volumes
+docker compose down
+rm -rf ./ffit-data
 ```
 
 You can also build and run the image manually with a host-mounted data directory:
