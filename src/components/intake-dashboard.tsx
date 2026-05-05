@@ -6,6 +6,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Copy,
   Dumbbell,
   Edit3,
   ExternalLink,
@@ -13,6 +14,7 @@ import {
   Ham,
   LayoutDashboard,
   List,
+  Plus,
   PieChart,
   Salad,
   Save,
@@ -43,7 +45,18 @@ import { cn } from "@/lib/utils"
 
 const intakeApiPath = "/api/intake"
 const intakeTrackingStart = "2026-04-27"
-const requiredMealMoments = ["desayuno", "comida", "cena"]
+const requiredMealMoments = ["breakfast", "lunch", "dinner"]
+const mealMomentOptions = ["Breakfast", "Lunch", "Snacks", "Dinner"]
+const unitOptions = [
+  { label: "Grams - g", value: "g" },
+  { label: "Milliliters - ml", value: "ml" },
+  { label: "Units - unit", value: "unit" },
+  { label: "Servings - serving", value: "serving" },
+  { label: "Tablespoons - tbsp", value: "tbsp" },
+  { label: "Teaspoons - tsp", value: "tsp" },
+  { label: "Cups - cup", value: "cup" },
+  { label: "Slices - slice", value: "slice" },
+]
 const dailyRecommendedCalories = 2200
 
 type DashboardView =
@@ -53,6 +66,12 @@ type DashboardView =
   | "workouts"
 type EditStatus = Record<number, "idle" | "saving" | "error">
 type IntakeDraft = Omit<IntakeEntry, "id" | "userId">
+type FullEditorState = {
+  mode: "create" | "edit" | "duplicate"
+  entry?: IntakeEntry
+  draft: IntakeDraft
+  status: "idle" | "saving" | "error"
+}
 type Language = "ca" | "es" | "en"
 type SessionUser = {
   id: number
@@ -127,6 +146,17 @@ const copy = {
     tableSource: "URL",
     source: "Font",
     subtotal: "Subtotal",
+    addEntry: "Afegir entrada",
+    fullEdit: "Edicio completa",
+    duplicateEntry: "Duplicar entrada",
+    duplicateToDay: "Duplicar al dia",
+    entryEditor: "Editor d'entrada",
+    newEntry: "Nova entrada",
+    targetDate: "Data desti",
+    brand: "Marca",
+    unit: "Unitat",
+    calories: "Calories",
+    url: "URL",
     save: "Desar",
     cancel: "Cancel.lar",
     saveError: "Error en desar",
@@ -193,6 +223,17 @@ const copy = {
     tableSource: "URL",
     source: "Fuente",
     subtotal: "Subtotal",
+    addEntry: "Anadir entrada",
+    fullEdit: "Edicion completa",
+    duplicateEntry: "Duplicar entrada",
+    duplicateToDay: "Duplicar al dia",
+    entryEditor: "Editor de entrada",
+    newEntry: "Nueva entrada",
+    targetDate: "Fecha destino",
+    brand: "Marca",
+    unit: "Unidad",
+    calories: "Calorias",
+    url: "URL",
     save: "Guardar",
     cancel: "Cancelar",
     saveError: "Error al guardar",
@@ -259,6 +300,17 @@ const copy = {
     tableSource: "URL",
     source: "Source",
     subtotal: "Subtotal",
+    addEntry: "Add entry",
+    fullEdit: "Full edit",
+    duplicateEntry: "Duplicate entry",
+    duplicateToDay: "Duplicate to day",
+    entryEditor: "Entry editor",
+    newEntry: "New entry",
+    targetDate: "Target date",
+    brand: "Brand",
+    unit: "Unit",
+    calories: "Calories",
+    url: "URL",
     save: "Save",
     cancel: "Cancel",
     saveError: "Save failed",
@@ -319,6 +371,23 @@ function draftFromEntry(entry: IntakeEntry): IntakeDraft {
     protein: entry.protein,
     url: entry.url,
     notes: entry.notes,
+  }
+}
+
+function emptyDraft(date: string): IntakeDraft {
+  return {
+    date,
+    meal: "",
+    food: "",
+    quantity: "",
+    unit: "",
+    brand: "",
+    calories: 0,
+    fat: 0,
+    carbs: 0,
+    protein: 0,
+    url: "",
+    notes: "",
   }
 }
 
@@ -676,23 +745,23 @@ function CalendarIntakeTracker({
 function mealTagClass(moment: string) {
   const normalized = normalizeMealMoment(moment)
 
-  if (normalized.includes("desayuno")) {
+  if (normalized.includes("breakfast") || normalized.includes("desayuno")) {
     return "border-amber-200 bg-amber-100 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
   }
 
-  if (normalized.includes("media")) {
+  if (normalized.includes("snack") || normalized.includes("media")) {
     return "border-sky-200 bg-sky-100 text-sky-900 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200"
   }
 
-  if (normalized.includes("comida")) {
+  if (normalized.includes("lunch") || normalized.includes("comida")) {
     return "border-emerald-200 bg-emerald-100 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
   }
 
-  if (normalized.includes("merienda")) {
+  if (normalized.includes("snack") || normalized.includes("merienda")) {
     return "border-violet-200 bg-violet-100 text-violet-900 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-200"
   }
 
-  if (normalized.includes("cena")) {
+  if (normalized.includes("dinner") || normalized.includes("cena")) {
     return "border-rose-200 bg-rose-100 text-rose-900 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-200"
   }
 
@@ -702,23 +771,23 @@ function mealTagClass(moment: string) {
 function mealSubtotalClass(moment: string) {
   const normalized = normalizeMealMoment(moment)
 
-  if (normalized.includes("desayuno")) {
+  if (normalized.includes("breakfast") || normalized.includes("desayuno")) {
     return "border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
   }
 
-  if (normalized.includes("media")) {
+  if (normalized.includes("snack") || normalized.includes("media")) {
     return "border-sky-200 bg-sky-50 text-sky-950 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-100"
   }
 
-  if (normalized.includes("comida")) {
+  if (normalized.includes("lunch") || normalized.includes("comida")) {
     return "border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100"
   }
 
-  if (normalized.includes("merienda")) {
+  if (normalized.includes("snack") || normalized.includes("merienda")) {
     return "border-violet-200 bg-violet-50 text-violet-950 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-100"
   }
 
-  if (normalized.includes("cena")) {
+  if (normalized.includes("dinner") || normalized.includes("cena")) {
     return "border-rose-200 bg-rose-50 text-rose-950 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-100"
   }
 
@@ -753,6 +822,199 @@ function LanguageSelector({
 
 function inputClass() {
   return "h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+}
+
+function EntryEditor({
+  editor,
+  t,
+  onChange,
+  onClose,
+  onSave,
+}: {
+  editor: FullEditorState
+  t: Copy
+  onChange: (field: keyof IntakeDraft, value: string | number) => void
+  onClose: () => void
+  onSave: () => void
+}) {
+  const title =
+    editor.mode === "create"
+      ? t.newEntry
+      : editor.mode === "duplicate"
+        ? t.duplicateToDay
+        : t.entryEditor
+  const saveLabel = editor.mode === "edit" ? t.save : t.addEntry
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/80 px-4 py-8 backdrop-blur-sm">
+      <div className="w-full max-w-3xl rounded-md border border-border bg-card text-card-foreground shadow-xl">
+        <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-3 sm:px-5">
+          <div>
+            <h2 className="text-lg font-semibold tracking-normal">{title}</h2>
+            <p className="text-sm text-muted-foreground">{t.entryEditor}</p>
+          </div>
+          <Button
+            aria-label={t.cancel}
+            onClick={onClose}
+            size="icon"
+            title={t.cancel}
+            type="button"
+            variant="ghost"
+          >
+            <X />
+          </Button>
+        </div>
+
+        <div className="grid gap-4 px-4 py-5 sm:grid-cols-2 sm:px-5">
+          <label className="grid gap-1 text-sm">
+            {editor.mode === "duplicate" ? t.targetDate : t.tableDate}
+            <input
+              className={inputClass()}
+              type="date"
+              value={editor.draft.date}
+              onChange={(event) => onChange("date", event.target.value)}
+            />
+          </label>
+          <label className="grid gap-1 text-sm">
+            {t.tableMoment}
+            <select
+              className={inputClass()}
+              value={editor.draft.meal}
+              onChange={(event) => onChange("meal", event.target.value)}
+            >
+              <option value="" disabled>
+                {t.tableMoment}
+              </option>
+              {mealMomentOptions.map((meal) => (
+                <option key={meal} value={meal}>
+                  {meal}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm">
+            {t.tableFood}
+            <input
+              className={inputClass()}
+              value={editor.draft.food}
+              onChange={(event) => onChange("food", event.target.value)}
+            />
+          </label>
+          <label className="grid gap-1 text-sm">
+            {t.brand}
+            <input
+              className={inputClass()}
+              value={editor.draft.brand}
+              onChange={(event) => onChange("brand", event.target.value)}
+            />
+          </label>
+          <label className="grid gap-1 text-sm">
+            {t.tableQuantity}
+            <input
+              className={inputClass()}
+              value={editor.draft.quantity}
+              onChange={(event) => onChange("quantity", event.target.value)}
+            />
+          </label>
+          <label className="grid gap-1 text-sm">
+            {t.unit}
+            <select
+              className={inputClass()}
+              value={editor.draft.unit}
+              onChange={(event) => onChange("unit", event.target.value)}
+            >
+              <option value="" disabled>
+                {t.unit}
+              </option>
+              {unitOptions.map((unit) => (
+                <option key={unit.value} value={unit.value}>
+                  {unit.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm">
+            {t.calories}
+            <input
+              className={inputClass()}
+              min="0"
+              type="number"
+              value={numericDraftValue(editor.draft.calories)}
+              onChange={(event) =>
+                onChange("calories", parseDraftNumber(event.target.value))
+              }
+            />
+          </label>
+          <label className="grid gap-1 text-sm">
+            {t.tableFat}
+            <input
+              className={inputClass()}
+              min="0"
+              step="0.1"
+              type="number"
+              value={numericDraftValue(editor.draft.fat)}
+              onChange={(event) => onChange("fat", parseDraftNumber(event.target.value))}
+            />
+          </label>
+          <label className="grid gap-1 text-sm">
+            Carbs
+            <input
+              className={inputClass()}
+              min="0"
+              step="0.1"
+              type="number"
+              value={numericDraftValue(editor.draft.carbs)}
+              onChange={(event) => onChange("carbs", parseDraftNumber(event.target.value))}
+            />
+          </label>
+          <label className="grid gap-1 text-sm">
+            {t.protein}
+            <input
+              className={inputClass()}
+              min="0"
+              step="0.1"
+              type="number"
+              value={numericDraftValue(editor.draft.protein)}
+              onChange={(event) => onChange("protein", parseDraftNumber(event.target.value))}
+            />
+          </label>
+          <label className="grid gap-1 text-sm sm:col-span-2">
+            {t.url}
+            <input
+              className={inputClass()}
+              value={editor.draft.url}
+              onChange={(event) => onChange("url", event.target.value)}
+            />
+          </label>
+          <label className="grid gap-1 text-sm sm:col-span-2">
+            {t.tableNotes}
+            <textarea
+              className="min-h-28 w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+              value={editor.draft.notes}
+              onChange={(event) => onChange("notes", event.target.value)}
+            />
+          </label>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border px-4 py-3 sm:px-5">
+          {editor.status === "error" ? (
+            <span className="text-sm text-red-500">{t.saveError}</span>
+          ) : null}
+          <Button onClick={onClose} type="button" variant="outline">
+            {t.cancel}
+          </Button>
+          <Button
+            disabled={editor.status === "saving"}
+            onClick={onSave}
+            type="button"
+          >
+            <Save />
+            {saveLabel}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function TopBar({ user }: { user: SessionUser | null }) {
@@ -847,9 +1109,12 @@ function IntakeTable({
   language,
   t,
   canEdit,
+  duplicateTargetDate,
   editingEntries,
   editStatus,
   onEditEntry,
+  onFullEditEntry,
+  onDuplicateEntry,
   onCancelEdit,
   onChangeDraft,
   onSaveEntry,
@@ -859,9 +1124,12 @@ function IntakeTable({
   language: Language
   t: Copy
   canEdit: boolean
+  duplicateTargetDate?: string
   editingEntries: Record<number, IntakeDraft>
   editStatus: EditStatus
   onEditEntry: (entry: IntakeEntry) => void
+  onFullEditEntry: (entry: IntakeEntry) => void
+  onDuplicateEntry: (entry: IntakeEntry) => void
   onCancelEdit: (id: number) => void
   onChangeDraft: (
     id: number,
@@ -981,13 +1249,22 @@ function IntakeTable({
                                   }
                                 />
                               ) : null}
-                              <input
+                              <select
                                 className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
                                 value={draft.meal}
                                 onChange={(event) =>
                                   onChangeDraft(entry.id, "meal", event.target.value)
                                 }
-                              />
+                              >
+                                <option value="" disabled>
+                                  {t.tableMoment}
+                                </option>
+                                {mealMomentOptions.map((meal) => (
+                                  <option key={meal} value={meal}>
+                                    {meal}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                           ) : (
                             <Badge variant="outline" className={mealTagClass(entry.meal)}>
@@ -1034,13 +1311,22 @@ function IntakeTable({
                                   onChangeDraft(entry.id, "quantity", event.target.value)
                                 }
                               />
-                              <input
+                              <select
                                 className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
                                 value={draft.unit}
                                 onChange={(event) =>
                                   onChangeDraft(entry.id, "unit", event.target.value)
                                 }
-                              />
+                              >
+                                <option value="" disabled>
+                                  {t.unit}
+                                </option>
+                                {unitOptions.map((unit) => (
+                                  <option key={unit.value} value={unit.value}>
+                                    {unit.label}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                           ) : (
                             [entry.quantity, entry.unit].filter(Boolean).join(" ")
@@ -1183,15 +1469,40 @@ function IntakeTable({
                                 <span className="text-muted-foreground">-</span>
                               )}
                               {canEdit ? (
-                                <Button
-                                  aria-label={`${t.editEntry} ${entry.food}`}
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => onEditEntry(entry)}
-                                  title={`${t.editEntry} ${entry.food}`}
-                                >
-                                  <Edit3 />
-                                </Button>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    aria-label={`${t.editEntry} ${entry.food}`}
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => onEditEntry(entry)}
+                                    title={`${t.editEntry} ${entry.food}`}
+                                  >
+                                    <Edit3 />
+                                  </Button>
+                                  <Button
+                                    aria-label={`${t.fullEdit} ${entry.food}`}
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => onFullEditEntry(entry)}
+                                    title={`${t.fullEdit} ${entry.food}`}
+                                  >
+                                    <List />
+                                  </Button>
+                                  <Button
+                                    aria-label={`${t.duplicateEntry} ${entry.food}`}
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() =>
+                                      onDuplicateEntry({
+                                        ...entry,
+                                        date: duplicateTargetDate ?? entry.date,
+                                      })
+                                    }
+                                    title={`${t.duplicateEntry} ${entry.food}`}
+                                  >
+                                    <Copy />
+                                  </Button>
+                                </div>
                               ) : null}
                             </div>
                           )}
@@ -1246,10 +1557,13 @@ function IntakeLogView({
   t,
   onLanguageChange,
   onShowDayDetails,
+  onAddEntry,
   canEdit,
   editingEntries,
   editStatus,
   onEditEntry,
+  onFullEditEntry,
+  onDuplicateEntry,
   onCancelEdit,
   onChangeDraft,
   onSaveEntry,
@@ -1260,10 +1574,13 @@ function IntakeLogView({
   t: Copy
   onLanguageChange: (language: Language) => void
   onShowDayDetails: (date: string) => void
+  onAddEntry: (date: string) => void
   canEdit: boolean
   editingEntries: Record<number, IntakeDraft>
   editStatus: EditStatus
   onEditEntry: (entry: IntakeEntry) => void
+  onFullEditEntry: (entry: IntakeEntry) => void
+  onDuplicateEntry: (entry: IntakeEntry) => void
   onCancelEdit: (id: number) => void
   onChangeDraft: (
     id: number,
@@ -1311,6 +1628,16 @@ function IntakeLogView({
                 <Badge variant="outline">{Math.round(day.protein)} g {t.protein}</Badge>
                 <Badge variant="outline">{Math.round(day.carbs)} g {t.carbs}</Badge>
                 <Badge variant="outline">{Math.round(day.fat)} g {t.fats}</Badge>
+                {canEdit ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onAddEntry(day.date)}
+                  >
+                    <Plus />
+                    {t.addEntry}
+                  </Button>
+                ) : null}
                 <Button size="sm" onClick={() => onShowDayDetails(day.date)}>
                   {t.allDetails}
                 </Button>
@@ -1322,9 +1649,12 @@ function IntakeLogView({
                 language={language}
                 t={t}
                 canEdit={canEdit}
+                duplicateTargetDate={day.date}
                 editingEntries={editingEntries}
                 editStatus={editStatus}
                 onEditEntry={onEditEntry}
+                onFullEditEntry={onFullEditEntry}
+                onDuplicateEntry={onDuplicateEntry}
                 onCancelEdit={onCancelEdit}
                 onChangeDraft={onChangeDraft}
                 onSaveEntry={onSaveEntry}
@@ -1350,7 +1680,10 @@ function DayDetailsView({
   editingEntries,
   editStatus,
   onBackToLog,
+  onAddEntry,
   onEditEntry,
+  onFullEditEntry,
+  onDuplicateEntry,
   onCancelEdit,
   onChangeDraft,
   onSaveEntry,
@@ -1365,7 +1698,10 @@ function DayDetailsView({
   editingEntries: Record<number, IntakeDraft>
   editStatus: EditStatus
   onBackToLog: () => void
+  onAddEntry: (date: string) => void
   onEditEntry: (entry: IntakeEntry) => void
+  onFullEditEntry: (entry: IntakeEntry) => void
+  onDuplicateEntry: (entry: IntakeEntry) => void
   onCancelEdit: (id: number) => void
   onChangeDraft: (
     id: number,
@@ -1388,6 +1724,16 @@ function DayDetailsView({
           </h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {canEdit ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onAddEntry(day.date)}
+            >
+              <Plus />
+              {t.addEntry}
+            </Button>
+          ) : null}
           <Button variant="outline" size="sm" onClick={onBackToLog}>
             <ArrowLeft />
             {t.backToLog}
@@ -1477,9 +1823,12 @@ function DayDetailsView({
             language={language}
             t={t}
             canEdit={canEdit}
+            duplicateTargetDate={day.date}
             editingEntries={editingEntries}
             editStatus={editStatus}
             onEditEntry={onEditEntry}
+            onFullEditEntry={onFullEditEntry}
+            onDuplicateEntry={onDuplicateEntry}
             onCancelEdit={onCancelEdit}
             onChangeDraft={onChangeDraft}
             onSaveEntry={onSaveEntry}
@@ -1506,6 +1855,7 @@ export function IntakeDashboard() {
   const [canEdit, setCanEdit] = useState(false)
   const [editingEntries, setEditingEntries] = useState<Record<number, IntakeDraft>>({})
   const [editStatus, setEditStatus] = useState<EditStatus>({})
+  const [entryEditor, setEntryEditor] = useState<FullEditorState | null>(null)
 
   useEffect(() => {
     const storedLanguage = window.localStorage.getItem("language")
@@ -1649,6 +1999,50 @@ export function IntakeDashboard() {
     }))
   }
 
+  function openCreateEntry(date: string) {
+    setEntryEditor({
+      mode: "create",
+      draft: emptyDraft(date),
+      status: "idle",
+    })
+  }
+
+  function openFullEditEntry(entry: IntakeEntry) {
+    setEntryEditor({
+      mode: "edit",
+      entry,
+      draft: draftFromEntry(entry),
+      status: "idle",
+    })
+  }
+
+  function openDuplicateEntry(entry: IntakeEntry) {
+    setEntryEditor({
+      mode: "duplicate",
+      entry,
+      draft: {
+        ...draftFromEntry(entry),
+        date: activeDay?.date ?? entry.date,
+      },
+      status: "idle",
+    })
+  }
+
+  function changeFullEditorDraft(field: keyof IntakeDraft, value: string | number) {
+    setEntryEditor((current) =>
+      current
+        ? {
+            ...current,
+            draft: {
+              ...current.draft,
+              [field]: value,
+            },
+            status: "idle",
+          }
+        : current
+    )
+  }
+
   function cancelEdit(id: number) {
     setEditingEntries((current) => {
       const next = { ...current }
@@ -1716,6 +2110,57 @@ export function IntakeDashboard() {
         ...current,
         [entry.id]: "error",
       }))
+    }
+  }
+
+  async function saveFullEditorEntry() {
+    if (!entryEditor) return
+
+    setEntryEditor((current) =>
+      current ? { ...current, status: "saving" } : current
+    )
+
+    try {
+      const editEntryTarget =
+        entryEditor.mode === "edit" ? entryEditor.entry : undefined
+      const isEdit = Boolean(editEntryTarget)
+      if (entryEditor.mode === "edit" && !editEntryTarget) {
+        throw new Error("Missing entry")
+      }
+      const body =
+        editEntryTarget !== undefined
+          ? {
+              id: editEntryTarget.id,
+              ...entryEditor.draft,
+            }
+          : entryEditor.draft
+      const response = await fetch(intakeApiPath, {
+        method: isEdit ? "PATCH" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      })
+
+      if (!response.ok) throw new Error("Failed to save entry")
+
+      const payload = (await response.json()) as { entry: IntakeEntry }
+
+      setEntries((current) =>
+        isEdit
+          ? current.map((item) =>
+              item.id === payload.entry.id ? payload.entry : item
+            )
+          : [...current, payload.entry]
+      )
+      if (!isEdit) {
+        setSelectedDate(payload.entry.date)
+      }
+      setEntryEditor(null)
+    } catch {
+      setEntryEditor((current) =>
+        current ? { ...current, status: "error" } : current
+      )
     }
   }
 
@@ -1798,8 +2243,25 @@ export function IntakeDashboard() {
               <CardTitle>{t.intakeRegister}</CardTitle>
               <CardDescription>{status}</CardDescription>
             </CardHeader>
+            {canEdit ? (
+              <CardContent>
+                <Button onClick={() => openCreateEntry(dateKey(new Date()))}>
+                  <Plus />
+                  {t.addEntry}
+                </Button>
+              </CardContent>
+            ) : null}
           </Card>
         </main>
+        {entryEditor ? (
+          <EntryEditor
+            editor={entryEditor}
+            t={t}
+            onChange={changeFullEditorDraft}
+            onClose={() => setEntryEditor(null)}
+            onSave={saveFullEditorEntry}
+          />
+        ) : null}
       </div>
     )
   }
@@ -1818,10 +2280,13 @@ export function IntakeDashboard() {
               t={t}
               onLanguageChange={changeLanguage}
               onShowDayDetails={showDayDetails}
+              onAddEntry={openCreateEntry}
               canEdit={canEdit}
               editingEntries={editingEntries}
               editStatus={editStatus}
               onEditEntry={editEntry}
+              onFullEditEntry={openFullEditEntry}
+              onDuplicateEntry={openDuplicateEntry}
               onCancelEdit={cancelEdit}
               onChangeDraft={changeEntryDraft}
               onSaveEntry={saveEntry}
@@ -1838,7 +2303,10 @@ export function IntakeDashboard() {
               editingEntries={editingEntries}
               editStatus={editStatus}
               onBackToLog={() => setActiveView("nutrition-log")}
+              onAddEntry={openCreateEntry}
               onEditEntry={editEntry}
+              onFullEditEntry={openFullEditEntry}
+              onDuplicateEntry={openDuplicateEntry}
               onCancelEdit={cancelEdit}
               onChangeDraft={changeEntryDraft}
               onSaveEntry={saveEntry}
@@ -1991,9 +2459,21 @@ export function IntakeDashboard() {
 
         <section className="grid gap-4 lg:grid-cols-3">
           <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>{t.registeredFoods}</CardTitle>
-              <CardDescription>{status}</CardDescription>
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <CardTitle>{t.registeredFoods}</CardTitle>
+                <CardDescription>{status}</CardDescription>
+              </div>
+              {canEdit ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openCreateEntry(activeDay.date)}
+                >
+                  <Plus />
+                  {t.addEntry}
+                </Button>
+              ) : null}
             </CardHeader>
             <CardContent>
               <IntakeTable
@@ -2001,9 +2481,12 @@ export function IntakeDashboard() {
                 language={language}
                 t={t}
                 canEdit={canEdit}
+                duplicateTargetDate={activeDay.date}
                 editingEntries={editingEntries}
                 editStatus={editStatus}
                 onEditEntry={editEntry}
+                onFullEditEntry={openFullEditEntry}
+                onDuplicateEntry={openDuplicateEntry}
                 onCancelEdit={cancelEdit}
                 onChangeDraft={changeEntryDraft}
                 onSaveEntry={saveEntry}
@@ -2015,7 +2498,7 @@ export function IntakeDashboard() {
             <CalendarIntakeTracker
               days={days}
               selectedDate={activeDay.date}
-              onSelectDate={setSelectedDate}
+              onSelectDate={showDayDetails}
               language={language}
               t={t}
             />
@@ -2071,6 +2554,15 @@ export function IntakeDashboard() {
           )}
         </div>
       </main>
+      {entryEditor ? (
+        <EntryEditor
+          editor={entryEditor}
+          t={t}
+          onChange={changeFullEditorDraft}
+          onClose={() => setEntryEditor(null)}
+          onSave={saveFullEditorEntry}
+        />
+      ) : null}
     </div>
   )
 }

@@ -39,3 +39,12 @@
 - [x] every token has a copy to clipboard action
 - [x] every token has a remove action
 - [x] new token -> asks for a name -> confirm -> adds it to the list
+
+## EDITOR FEEDBACK
+- [x] Moment should be a selectable field between Breakfast, Lunch, Snacks and Dinner
+- [x] Units should be a selectable between the most used
+- [x] in Overview -> Calendar clicking on a day should take you to that day entry
+
+## GENERAL FEEDBACK
+- [ ] make header sticky
+- [ ] make the Log table the size of the screen + sidebar and scroll only its content
