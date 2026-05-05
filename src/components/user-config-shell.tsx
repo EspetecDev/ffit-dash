@@ -222,8 +222,8 @@ export function UserConfigShell({ user }: { user: AuthUser }) {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="flex items-center justify-between border-b border-border bg-background px-4 py-3 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background pt-[65px] text-foreground">
+      <header className="fixed inset-x-0 top-0 z-40 flex h-[65px] items-center justify-between border-b border-border bg-background/95 px-4 py-3 backdrop-blur sm:px-6 lg:px-8">
         <Link
           className="text-lg font-semibold tracking-normal transition-colors hover:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           href="/"
