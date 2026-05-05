@@ -13,11 +13,9 @@ import {
   Ham,
   LayoutDashboard,
   List,
-  LogOut,
   PieChart,
   Salad,
   Save,
-  Settings,
   Soup,
   Utensils,
   Wheat,
@@ -25,8 +23,9 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 
+import { AccountMenu } from "@/components/account-menu"
 import { Badge } from "@/components/ui/badge"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import {
   Card,
@@ -757,30 +756,17 @@ function inputClass() {
 }
 
 function TopBar({ user }: { user: SessionUser | null }) {
-  const avatarLabel = user?.username.slice(0, 1).toUpperCase() || "?"
-
   return (
     <header className="flex items-center justify-between border-b border-border bg-background px-4 py-3 sm:px-6 lg:px-8">
-      <div className="text-lg font-semibold tracking-normal">FFIT</div>
+      <Link
+        className="text-lg font-semibold tracking-normal transition-colors hover:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        href="/"
+      >
+        FFIT
+      </Link>
       <div className="flex items-center gap-2">
         <ThemeToggle />
-        {user?.role === "user" ? (
-          <Link
-            aria-label="Account settings"
-            className={cn(buttonVariants({ variant: "outline", size: "icon" }))}
-            href="/config"
-            title="Account settings"
-          >
-            <Settings />
-          </Link>
-        ) : null}
-        <div
-          className="flex size-9 items-center justify-center rounded-full border border-border bg-muted text-sm font-semibold text-muted-foreground"
-          aria-label={user ? user.username : "No user"}
-          title={user ? user.username : "No user"}
-        >
-          {avatarLabel}
-        </div>
+        <AccountMenu user={user} />
       </div>
     </header>
   )
@@ -1613,17 +1599,6 @@ export function IntakeDashboard() {
     }
   }
 
-  async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" })
-    setSessionUser(null)
-    setCanEdit(false)
-    setEntries([])
-    setSelectedDate(null)
-    setEditingEntries({})
-    setStatus(t.loginRequired)
-    window.location.replace("/")
-  }
-
   const days = useMemo(() => groupIntakeByDay(entries), [entries])
   const plotDays = useMemo(() => {
     const dayByDate = new Map(days.map((day) => [day.date, day]))
@@ -1806,23 +1781,6 @@ export function IntakeDashboard() {
               <CardTitle>{t.intakeRegister}</CardTitle>
               <CardDescription>{t.adminDashboardOnly}</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="default">{sessionUser.username}</Badge>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    window.location.href = "/admin"
-                  }}
-                >
-                  Admin
-                </Button>
-                <Button variant="outline" onClick={logout}>
-                  <LogOut />
-                  {t.logout}
-                </Button>
-              </div>
-            </CardContent>
           </Card>
         </main>
       </div>
@@ -1840,15 +1798,6 @@ export function IntakeDashboard() {
               <CardTitle>{t.intakeRegister}</CardTitle>
               <CardDescription>{status}</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between gap-3">
-                <Badge variant="outline">{sessionUser.username}</Badge>
-                <Button variant="outline" onClick={logout}>
-                  <LogOut />
-                  {t.logout}
-                </Button>
-              </div>
-            </CardContent>
           </Card>
         </main>
       </div>
@@ -1928,11 +1877,6 @@ export function IntakeDashboard() {
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">{sessionUser.username}</Badge>
-            <Button variant="outline" size="sm" onClick={logout}>
-              <LogOut />
-              {t.logout}
-            </Button>
             <LanguageSelector
               language={language}
               onLanguageChange={changeLanguage}
