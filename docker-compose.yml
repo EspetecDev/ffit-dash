@@ -11,8 +11,5 @@ services:
       FFIT_ADMIN_USERNAME: ${FFIT_ADMIN_USERNAME:-admin}
       FFIT_ADMIN_PASSWORD: ${FFIT_ADMIN_PASSWORD:-change-me-admin-password}
     volumes:
-      - ffit-data:/data/ffit
+      - ./ffit-data:/data/ffit
     restart: unless-stopped
-
-volumes:
-  ffit-data:
