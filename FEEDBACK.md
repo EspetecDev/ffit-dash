@@ -46,5 +46,5 @@
 - [x] in Overview -> Calendar clicking on a day should take you to that day entry
 
 ## GENERAL FEEDBACK
-- [ ] make header sticky
-- [ ] make the Log table the size of the screen + sidebar and scroll only its content
+- [x] make header sticky
+- [x] make the Log table the size of the screen + sidebar and scroll only its content

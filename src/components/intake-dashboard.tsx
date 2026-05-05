@@ -1019,7 +1019,7 @@ function EntryEditor({
 
 function TopBar({ user }: { user: SessionUser | null }) {
   return (
-    <header className="flex items-center justify-between border-b border-border bg-background px-4 py-3 sm:px-6 lg:px-8">
+    <header className="fixed inset-x-0 top-0 z-40 flex h-[65px] items-center justify-between border-b border-border bg-background/95 px-4 py-3 backdrop-blur sm:px-6 lg:px-8">
       <Link
         className="text-lg font-semibold tracking-normal transition-colors hover:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         href="/"
@@ -1190,7 +1190,7 @@ function IntakeTable({
   }, [])
 
   return (
-    <div className="overflow-x-auto">
+    <div className="max-w-full overflow-auto">
       <table className="w-full min-w-[1180px] text-left text-sm">
         <thead className="border-b text-xs uppercase text-muted-foreground">
           <tr>
@@ -1590,8 +1590,8 @@ function IntakeLogView({
   onSaveEntry: (entry: IntakeEntry) => void
 }) {
   return (
-    <div className="flex flex-col gap-4">
-      <header className="flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-center md:justify-between">
+    <div className="flex h-[calc(100vh-105px)] min-h-0 min-w-0 flex-col gap-4">
+      <header className="shrink-0 flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-center md:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <CalendarDays className="size-4" />
@@ -1611,9 +1611,10 @@ function IntakeLogView({
         </div>
       </header>
 
-      <div className="grid gap-4">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto pr-1">
+        <div className="grid min-w-0 gap-4">
         {[...days].reverse().map((day) => (
-          <Card key={day.date}>
+          <Card key={day.date} className="min-w-0 overflow-hidden">
             <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <CardTitle>{formatDate(day.date, language)}</CardTitle>
@@ -1643,7 +1644,7 @@ function IntakeLogView({
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="min-w-0">
               <IntakeTable
                 entries={day.entries}
                 language={language}
@@ -1662,9 +1663,10 @@ function IntakeLogView({
             </CardContent>
           </Card>
         ))}
+        </div>
       </div>
 
-      <p className="text-sm text-muted-foreground">{status}</p>
+      <p className="shrink-0 text-sm text-muted-foreground">{status}</p>
     </div>
   )
 }
@@ -2171,7 +2173,7 @@ export function IntakeDashboard() {
 
   if (!sessionLoaded || !sessionUser) {
     return (
-      <div className="min-h-screen bg-background text-foreground">
+      <div className="min-h-screen bg-background pt-[65px] text-foreground">
         <TopBar user={sessionUser} />
         <main className="flex min-h-[calc(100vh-65px)] items-center justify-center p-6">
           <Card className="max-w-md">
@@ -2218,7 +2220,7 @@ export function IntakeDashboard() {
 
   if (sessionUser.role === "admin") {
     return (
-      <div className="min-h-screen bg-background text-foreground">
+      <div className="min-h-screen bg-background pt-[65px] text-foreground">
         <TopBar user={sessionUser} />
         <main className="flex min-h-[calc(100vh-65px)] items-center justify-center p-6">
           <Card className="max-w-md">
@@ -2234,7 +2236,7 @@ export function IntakeDashboard() {
 
   if (!activeDay) {
     return (
-      <div className="min-h-screen bg-background text-foreground">
+      <div className="min-h-screen bg-background pt-[65px] text-foreground">
         <TopBar user={sessionUser} />
         <SidebarNav activeView={activeView} onViewChange={setActiveView} t={t} />
         <main className="flex min-h-[calc(100vh-65px)] items-center justify-center p-6 md:pl-64">
@@ -2267,11 +2269,11 @@ export function IntakeDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background pt-[65px] text-foreground">
       <TopBar user={sessionUser} />
       <SidebarNav activeView={activeView} onViewChange={setActiveView} t={t} />
-      <main className="min-h-[calc(100vh-65px)] md:pl-64">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
+      <main className="min-h-[calc(100vh-65px)] min-w-0 md:pl-64">
+        <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
           {activeView === "nutrition-log" ? (
             <IntakeLogView
               days={days}

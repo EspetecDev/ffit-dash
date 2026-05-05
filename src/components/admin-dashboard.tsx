@@ -201,7 +201,7 @@ export function AdminDashboard() {
   return (
     <main className="min-h-screen bg-background px-4 py-6 text-foreground sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-5xl flex-col gap-5">
-        <header className="border-b border-border pb-5">
+        <header className="sticky top-0 z-40 border-b border-border bg-background/95 pb-5 pt-1 backdrop-blur">
           <div className="flex items-center justify-between gap-3">
             <Link
               className="text-lg font-semibold tracking-normal transition-colors hover:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
