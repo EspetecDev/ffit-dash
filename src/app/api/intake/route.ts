@@ -57,9 +57,13 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const user = getUserByApiToken(getBearerToken(request))
+  const bearerToken = getBearerToken(request)
+  const user = bearerToken ? getUserByApiToken(bearerToken) : getRequestUser(request)
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+  if (user.role === "admin") {
+    return NextResponse.json({ error: "Admins manage accounts only" }, { status: 403 })
   }
 
   try {
