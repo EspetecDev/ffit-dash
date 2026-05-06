@@ -85,7 +85,6 @@ export function AccountMenu({ user }: AccountMenuProps) {
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={user ? `${user.username} account menu` : "No user"}
-        className="rounded-full"
         disabled={isDisabled}
         onClick={toggleMenu}
         onKeyDown={handleTriggerKeyDown}
