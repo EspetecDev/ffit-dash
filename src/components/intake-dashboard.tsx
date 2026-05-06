@@ -1,9 +1,20 @@
 "use client"
 
-import { FormEvent, Fragment, useCallback, useEffect, useMemo, useState } from "react"
+import {
+  FormEvent,
+  Fragment,
+  KeyboardEvent,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import {
   ArrowLeft,
   CalendarDays,
+  Check,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -12,6 +23,7 @@ import {
   ExternalLink,
   Flame,
   Ham,
+  Languages,
   LayoutDashboard,
   List,
   Plus,
@@ -803,19 +815,101 @@ function LanguageSelector({
   onLanguageChange: (language: Language) => void
   t: Copy
 }) {
+  const menuId = useId()
+  const rootRef = useRef<HTMLDivElement>(null)
+  const firstItemRef = useRef<HTMLButtonElement>(null)
+  const [open, setOpen] = useState(false)
+  const options: Language[] = ["ca", "es", "en"]
+
+  useEffect(() => {
+    if (!open) return
+
+    function closeOnPointerDown(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+
+    function closeOnEscape(event: globalThis.KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener("pointerdown", closeOnPointerDown)
+    document.addEventListener("keydown", closeOnEscape)
+
+    return () => {
+      document.removeEventListener("pointerdown", closeOnPointerDown)
+      document.removeEventListener("keydown", closeOnEscape)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (open) {
+      firstItemRef.current?.focus()
+    }
+  }, [open])
+
+  function selectLanguage(nextLanguage: Language) {
+    onLanguageChange(nextLanguage)
+    setOpen(false)
+  }
+
+  function handleTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
+      event.preventDefault()
+      setOpen(true)
+    }
+  }
+
   return (
-    <div className="flex items-center gap-1 rounded-md border border-border p-1">
-      <span className="px-2 text-xs text-muted-foreground">{t.language}</span>
-      {(["ca", "es", "en"] as Language[]).map((option) => (
-        <Button
-          key={option}
-          variant={language === option ? "default" : "ghost"}
-          size="sm"
-          onClick={() => onLanguageChange(option)}
+    <div ref={rootRef} className="relative">
+      <Button
+        aria-controls={open ? menuId : undefined}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label={t.language}
+        className="relative"
+        onClick={() => setOpen((current) => !current)}
+        onKeyDown={handleTriggerKeyDown}
+        size="icon"
+        title={t.language}
+        type="button"
+        variant="outline"
+      >
+        <span className="sr-only">{t.language}</span>
+        <Languages />
+        <span className="absolute bottom-0.5 right-0.5 rounded-sm bg-background px-0.5 text-[9px] font-semibold leading-none">
+          {languageLabels[language]}
+        </span>
+      </Button>
+
+      {open ? (
+        <div
+          className="absolute right-0 top-11 z-50 min-w-32 overflow-hidden rounded-md border border-border bg-card py-1 text-card-foreground shadow-lg"
+          id={menuId}
+          role="menu"
         >
-          {languageLabels[option]}
-        </Button>
-      ))}
+          {options.map((option, index) => (
+            <button
+              key={option}
+              ref={index === 0 ? firstItemRef : undefined}
+              className={cn(
+                "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-muted focus:bg-muted focus:outline-none",
+                language === option && "font-medium text-primary"
+              )}
+              onClick={() => selectLanguage(option)}
+              role="menuitemradio"
+              aria-checked={language === option}
+              type="button"
+            >
+              <span>{languageLabels[option]}</span>
+              {language === option ? <Check aria-hidden="true" className="size-4" /> : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -1017,7 +1111,17 @@ function EntryEditor({
   )
 }
 
-function TopBar({ user }: { user: SessionUser | null }) {
+function TopBar({
+  language,
+  onLanguageChange,
+  t,
+  user,
+}: {
+  language: Language
+  onLanguageChange: (language: Language) => void
+  t: Copy
+  user: SessionUser | null
+}) {
   return (
     <header className="fixed inset-x-0 top-0 z-40 flex h-[65px] items-center justify-between border-b border-border bg-background/95 px-4 py-3 backdrop-blur sm:px-6 lg:px-8">
       <Link
@@ -1027,6 +1131,11 @@ function TopBar({ user }: { user: SessionUser | null }) {
         FFIT
       </Link>
       <div className="flex items-center gap-2">
+        <LanguageSelector
+          language={language}
+          onLanguageChange={onLanguageChange}
+          t={t}
+        />
         <ThemeToggle />
         <AccountMenu user={user} />
       </div>
@@ -1555,7 +1664,6 @@ function IntakeLogView({
   status,
   language,
   t,
-  onLanguageChange,
   onShowDayDetails,
   onAddEntry,
   canEdit,
@@ -1572,7 +1680,6 @@ function IntakeLogView({
   status: string
   language: Language
   t: Copy
-  onLanguageChange: (language: Language) => void
   onShowDayDetails: (date: string) => void
   onAddEntry: (date: string) => void
   canEdit: boolean
@@ -1601,13 +1708,6 @@ function IntakeLogView({
           <h1 className="mt-2 text-3xl font-semibold tracking-normal text-foreground">
             {t.intakeLog}
           </h1>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <LanguageSelector
-            language={language}
-            onLanguageChange={onLanguageChange}
-            t={t}
-          />
         </div>
       </header>
 
@@ -1677,7 +1777,6 @@ function DayDetailsView({
   meals,
   language,
   t,
-  onLanguageChange,
   canEdit,
   editingEntries,
   editStatus,
@@ -1695,7 +1794,6 @@ function DayDetailsView({
   meals: Record<string, number>
   language: Language
   t: Copy
-  onLanguageChange: (language: Language) => void
   canEdit: boolean
   editingEntries: Record<number, IntakeDraft>
   editStatus: EditStatus
@@ -1740,11 +1838,6 @@ function DayDetailsView({
             <ArrowLeft />
             {t.backToLog}
           </Button>
-          <LanguageSelector
-            language={language}
-            onLanguageChange={onLanguageChange}
-            t={t}
-          />
         </div>
       </header>
 
@@ -2174,7 +2267,12 @@ export function IntakeDashboard() {
   if (!sessionLoaded || !sessionUser) {
     return (
       <div className="min-h-screen bg-background pt-[65px] text-foreground">
-        <TopBar user={sessionUser} />
+        <TopBar
+          language={language}
+          onLanguageChange={changeLanguage}
+          t={t}
+          user={sessionUser}
+        />
         <main className="flex min-h-[calc(100vh-65px)] items-center justify-center p-6">
           <Card className="max-w-md">
             <CardHeader>
@@ -2221,7 +2319,12 @@ export function IntakeDashboard() {
   if (sessionUser.role === "admin") {
     return (
       <div className="min-h-screen bg-background pt-[65px] text-foreground">
-        <TopBar user={sessionUser} />
+        <TopBar
+          language={language}
+          onLanguageChange={changeLanguage}
+          t={t}
+          user={sessionUser}
+        />
         <main className="flex min-h-[calc(100vh-65px)] items-center justify-center p-6">
           <Card className="max-w-md">
             <CardHeader>
@@ -2237,7 +2340,12 @@ export function IntakeDashboard() {
   if (!activeDay) {
     return (
       <div className="min-h-screen bg-background pt-[65px] text-foreground">
-        <TopBar user={sessionUser} />
+        <TopBar
+          language={language}
+          onLanguageChange={changeLanguage}
+          t={t}
+          user={sessionUser}
+        />
         <SidebarNav activeView={activeView} onViewChange={setActiveView} t={t} />
         <main className="flex min-h-[calc(100vh-65px)] items-center justify-center p-6 md:pl-64">
           <Card className="max-w-md">
@@ -2270,7 +2378,12 @@ export function IntakeDashboard() {
 
   return (
     <div className="min-h-screen bg-background pt-[65px] text-foreground">
-      <TopBar user={sessionUser} />
+      <TopBar
+        language={language}
+        onLanguageChange={changeLanguage}
+        t={t}
+        user={sessionUser}
+      />
       <SidebarNav activeView={activeView} onViewChange={setActiveView} t={t} />
       <main className="min-h-[calc(100vh-65px)] min-w-0 md:pl-64">
         <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
@@ -2280,7 +2393,6 @@ export function IntakeDashboard() {
               status={status}
               language={language}
               t={t}
-              onLanguageChange={changeLanguage}
               onShowDayDetails={showDayDetails}
               onAddEntry={openCreateEntry}
               canEdit={canEdit}
@@ -2300,7 +2412,6 @@ export function IntakeDashboard() {
               meals={meals}
               language={language}
               t={t}
-              onLanguageChange={changeLanguage}
               canEdit={canEdit}
               editingEntries={editingEntries}
               editStatus={editStatus}
@@ -2345,13 +2456,6 @@ export function IntakeDashboard() {
             <h1 className="mt-2 text-3xl font-semibold tracking-normal text-foreground">
               {t.caloriesAndMacros}
             </h1>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <LanguageSelector
-              language={language}
-              onLanguageChange={changeLanguage}
-              t={t}
-            />
           </div>
         </header>
 
